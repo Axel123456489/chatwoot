@@ -33,18 +33,33 @@ class MessageFinder
   end
 
   def messages_after(after_id)
-    messages.reorder('created_at asc').where('id > ?', after_id).limit(100)
+    messages
+      .where('id > ?', after_id)
+      .reorder(Arel.sql('created_at ASC, id ASC'))
+      .limit(100)
   end
 
   def messages_before(before_id)
-    messages.reorder('created_at desc').where('id < ?', before_id).limit(20).reverse
+    messages
+      .where('id < ?', before_id)
+      .reorder(Arel.sql('created_at DESC, id DESC'))
+      .limit(20)
+      .to_a
+      .reverse
   end
 
   def messages_between(after_id, before_id)
-    messages.reorder('created_at asc').where('id >= ? AND id < ?', after_id, before_id).limit(1000)
+    messages
+      .where('id >= ? AND id < ?', after_id, before_id)
+      .reorder(Arel.sql('created_at ASC, id ASC'))
+      .limit(1000)
   end
 
   def messages_latest
-    messages.reorder('created_at desc').limit(20).reverse
+    messages
+      .reorder(Arel.sql('created_at DESC, id DESC'))
+      .limit(20)
+      .to_a
+      .reverse
   end
 end

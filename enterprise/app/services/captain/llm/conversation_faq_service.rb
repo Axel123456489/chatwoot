@@ -1,5 +1,4 @@
 class Captain::Llm::ConversationFaqService < Llm::BaseAiService
-  include Integrations::LlmInstrumentation
   DISTANCE_THRESHOLD = 0.3
 
   def initialize(assistant, conversation)
@@ -7,6 +6,8 @@ class Captain::Llm::ConversationFaqService < Llm::BaseAiService
     @assistant = assistant
     @conversation = conversation
     @content = conversation.to_llm_text
+    @model = 'gpt-4o-mini'
+    @temperature = 1.0
   end
 
   # Generates and deduplicates FAQs from conversation content
@@ -36,7 +37,7 @@ class Captain::Llm::ConversationFaqService < Llm::BaseAiService
 
     faqs.each do |faq|
       combined_text = "#{faq['question']}: #{faq['answer']}"
-      embedding = Captain::Llm::EmbeddingService.new(account_id: @conversation.account_id).get_embedding(combined_text)
+      embedding = Captain::Llm::EmbeddingService.new.get_embedding(combined_text)
       similar_faqs = find_similar_faqs(embedding)
 
       if similar_faqs.any?
@@ -82,31 +83,23 @@ class Captain::Llm::ConversationFaqService < Llm::BaseAiService
   end
 
   def generate
-    response = instrument_llm_call(instrumentation_params) do
-      chat
-        .with_params(response_format: { type: 'json_object' })
-        .with_instructions(system_prompt)
-        .ask(@content)
-    end
-    parse_response(response.content)
-  rescue RubyLLM::Error => e
-    Rails.logger.error "LLM API Error: #{e.message}"
+    response = client.chat(parameters: chat_parameters)
+    content = response.dig('choices', 0, 'message', 'content')
+    parse_response(content)
+  rescue OpenAI::Error => e
+    Rails.logger.error "OpenAI API Error: #{e.message}"
     []
   end
 
-  def instrumentation_params
+  def chat_parameters
     {
-      span_name: 'llm.captain.conversation_faq',
       model: @model,
-      temperature: @temperature,
-      account_id: @conversation.account_id,
-      conversation_id: @conversation.display_id,
-      feature_name: 'conversation_faq',
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system_prompt },
         { role: 'user', content: @content }
       ],
-      metadata: { assistant_id: @assistant.id }
+      temperature: @temperature
     }
   end
 
@@ -122,5 +115,9 @@ class Captain::Llm::ConversationFaqService < Llm::BaseAiService
   rescue JSON::ParserError => e
     Rails.logger.error "Error in parsing GPT processed response: #{e.message}"
     []
+  end
+
+  def client
+    @client ||= OpenAI::Client.new(access_token: InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value)
   end
 end

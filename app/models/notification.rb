@@ -43,7 +43,8 @@ class Notification < ApplicationRecord
     participating_conversation_new_message: 5,
     sla_missed_first_response: 6,
     sla_missed_next_response: 7,
-    sla_missed_resolution: 8
+    sla_missed_resolution: 8,
+    whatsapp_incoming_call: 9
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
@@ -85,7 +86,6 @@ class Notification < ApplicationRecord
     }
   end
 
-  # rubocop:disable Metrics/MethodLength
   def push_message_title
     notification_title_map = {
       'conversation_creation' => 'notifications.notification_title.conversation_creation',

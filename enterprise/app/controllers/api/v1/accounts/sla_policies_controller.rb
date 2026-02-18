@@ -17,7 +17,7 @@ class Api::V1::Accounts::SlaPoliciesController < Api::V1::Accounts::EnterpriseAc
   end
 
   def destroy
-    ::DeleteObjectJob.perform_later(@sla_policy, Current.user, request.ip) if @sla_policy.present?
+    @sla_policy.destroy!
     head :ok
   end
 

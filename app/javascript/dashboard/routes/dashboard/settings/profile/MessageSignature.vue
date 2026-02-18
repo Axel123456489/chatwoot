@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
+import { MESSAGE_SIGNATURE_EDITOR_MENU_OPTIONS } from 'dashboard/constants/editor';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
@@ -11,6 +12,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['updateSignature']);
+const customEditorMenuList = MESSAGE_SIGNATURE_EDITOR_MENU_OPTIONS;
 const signature = ref(props.messageSignature);
 watch(
   () => props.messageSignature ?? '',
@@ -32,7 +34,7 @@ const updateSignature = () => {
       class="message-editor h-[10rem] !px-3"
       is-format-mode
       :placeholder="$t('PROFILE_SETTINGS.FORM.MESSAGE_SIGNATURE.PLACEHOLDER')"
-      channel-type="Context::MessageSignature"
+      :enabled-menu-options="customEditorMenuList"
       :enable-suggestions="false"
       show-image-resize-toolbar
     />

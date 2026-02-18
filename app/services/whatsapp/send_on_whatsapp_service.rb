@@ -6,6 +6,10 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def perform_reply
+    # Never send voice_call messages via WhatsApp messaging API
+    # These are created locally for call history and recording storage only
+    return if message.content_type == 'voice_call'
+
     should_send_template_message = template_params.present? || !message.conversation.can_reply?
     if should_send_template_message
       send_template_message

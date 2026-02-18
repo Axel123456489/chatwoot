@@ -12,10 +12,6 @@ module AccountEmailRateLimitable
     Redis::Alfred.get(email_count_cache_key).to_i
   end
 
-  def email_transcript_enabled?
-    true
-  end
-
   def within_email_rate_limit?
     return true if emails_sent_today < email_rate_limit
 
@@ -44,7 +40,12 @@ module AccountEmailRateLimitable
   end
 
   def global_limit
-    GlobalConfig.get(EMAIL_LIMIT_CONFIG_KEY)[EMAIL_LIMIT_CONFIG_KEY]&.to_i
+    config_value = GlobalConfig.get(EMAIL_LIMIT_CONFIG_KEY)[EMAIL_LIMIT_CONFIG_KEY]
+    return config_value.to_i if config_value.present?
+
+    # If cache was populated before config existed, refresh once
+    GlobalConfig.clear_cache
+    InstallationConfig.find_by(name: EMAIL_LIMIT_CONFIG_KEY)&.value&.to_i
   end
 
   def default_limit

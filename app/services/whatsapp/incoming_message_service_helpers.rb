@@ -25,9 +25,20 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def message_content(message)
-    # TODO: map interactive messages back to button messages in chatwoot
-    message.dig(:text, :body) ||
-      message.dig(:button, :text) ||
+    if message.dig(:text, :body)
+      text = message.dig(:text, :body)
+      ref = message[:referral]
+      parts = [text]
+      if ref.present?
+        parts << "Referencia: #{ref[:source_url]}" if ref[:source_url].present?
+        parts << "Tipo de referencia: #{ref[:source_type]}" if ref[:source_type].present?
+        parts << "ID de referencia: #{ref[:source_id]}" if ref[:source_id].present?
+      end
+      final_content = parts.join("\n")
+      return final_content
+    end
+
+    message.dig(:button, :text) ||
       message.dig(:interactive, :button_reply, :title) ||
       message.dig(:interactive, :list_reply, :title) ||
       message.dig(:name, :formatted_name)
@@ -44,7 +55,7 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def unprocessable_message_type?(message_type)
-    %w[reaction ephemeral unsupported request_welcome].include?(message_type)
+    %w[ephemeral unsupported request_welcome].include?(message_type)
   end
 
   def processed_waid(waid)
@@ -69,9 +80,20 @@ module Whatsapp::IncomingMessageServiceHelpers
     @message = Message.find_by(source_id: source_id)
   end
 
-  def lock_message_source_id!
-    return false if messages_data.blank?
+  def message_under_process?
+    key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: messages_data.first[:id])
+    Redis::Alfred.get(key)
+  end
 
-    Whatsapp::MessageDedupLock.new(messages_data.first[:id]).acquire!
+  def cache_message_source_id_in_redis
+    return if messages_data.blank?
+
+    key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: messages_data.first[:id])
+    ::Redis::Alfred.setex(key, true)
+  end
+
+  def clear_message_source_id_from_redis
+    key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: messages_data.first[:id])
+    ::Redis::Alfred.delete(key)
   end
 end

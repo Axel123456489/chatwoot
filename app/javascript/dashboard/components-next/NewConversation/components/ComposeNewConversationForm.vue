@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { reactive, ref, computed } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, requiredIf } from '@vuelidate/validators';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import {
   appendSignature,
   removeSignature,
+  extractTextFromMarkdown,
   getEffectiveChannelType,
   stripUnsupportedMarkdown,
 } from 'dashboard/helper/editorHelper';
@@ -37,7 +38,6 @@ const props = defineProps({
   contactsUiFlags: { type: Object, default: null },
   messageSignature: { type: String, default: '' },
   sendWithSignature: { type: Boolean, default: false },
-  formState: { type: Object, required: true },
 });
 
 const emit = defineEmits([
@@ -58,13 +58,13 @@ const showBccEmailsDropdown = ref(false);
 
 const isCreating = computed(() => props.contactConversationsUiFlags.isCreating);
 
-const state = props.formState || {
+const state = reactive({
   message: '',
   subject: '',
   ccEmails: '',
   bccEmails: '',
   attachedFiles: [],
-};
+});
 
 const inboxTypes = computed(() => ({
   isEmail: props.targetInbox?.channelType === INBOX_TYPES.EMAIL,
@@ -90,12 +90,6 @@ const whatsappMessageTemplates = computed(() =>
 );
 
 const inboxChannelType = computed(() => props.targetInbox?.channelType || '');
-
-const inboxMedium = computed(() => props.targetInbox?.medium || '');
-
-const effectiveChannelType = computed(() =>
-  getEffectiveChannelType(inboxChannelType.value, inboxMedium.value)
-);
 
 const validationRules = computed(() => ({
   selectedContact: { required },
@@ -225,12 +219,11 @@ const handleInboxAction = ({ value, action, channelType, medium, ...rest }) => {
 const removeSignatureFromMessage = () => {
   // Always remove the signature from message content when inbox/contact is removed
   // to ensure no leftover signature content remains
-  if (props.messageSignature) {
-    state.message = removeSignature(
-      state.message,
-      props.messageSignature,
-      effectiveChannelType.value
-    );
+  const signatureToRemove = inboxTypes.value.isEmailOrWebWidget
+    ? props.messageSignature
+    : extractTextFromMarkdown(props.messageSignature);
+  if (signatureToRemove) {
+    state.message = removeSignature(state.message, signatureToRemove);
   }
 };
 
@@ -245,10 +238,10 @@ const removeTargetInbox = value => {
 };
 
 const clearSelectedContact = () => {
-  removeSignatureFromMessage();
   emit('clearSelectedContact');
   state.message = '';
   state.attachedFiles = [];
+  removeSignatureFromMessage();
 };
 
 const onClickInsertEmoji = emoji => {
@@ -256,19 +249,11 @@ const onClickInsertEmoji = emoji => {
 };
 
 const handleAddSignature = signature => {
-  state.message = appendSignature(
-    state.message,
-    signature,
-    effectiveChannelType.value
-  );
+  state.message = appendSignature(state.message, signature);
 };
 
 const handleRemoveSignature = signature => {
-  state.message = removeSignature(
-    state.message,
-    signature,
-    effectiveChannelType.value
-  );
+  state.message = removeSignature(state.message, signature);
 };
 
 const handleAttachFile = files => {
@@ -293,6 +278,47 @@ const handleSendMessage = async () => {
   try {
     const success = await emit('createConversation', {
       payload: newMessagePayload(),
+      isFromWhatsApp: false,
+    });
+    if (success) {
+      clearForm();
+    }
+  } catch (error) {
+    // Form will not be cleared if conversation creation fails
+  }
+};
+
+const handleCreateConversationOnly = async () => {
+  // Validate only contact and inbox, skip message validation
+  const contactValid = !v$.value.selectedContact.$invalid;
+  const inboxValid = !v$.value.targetInbox.$invalid;
+  const subjectValid = inboxTypes.value.isEmail
+    ? !v$.value.subject.$invalid
+    : true;
+
+  if (!contactValid || !inboxValid || !subjectValid) {
+    // Touch all fields to show validation errors
+    v$.value.selectedContact.$touch();
+    v$.value.targetInbox.$touch();
+    if (inboxTypes.value.isEmail) v$.value.subject.$touch();
+    return;
+  }
+
+  try {
+    const payload = {
+      inboxId: props.targetInbox?.id,
+      sourceId: props.targetInbox?.sourceId || props.selectedContact?.id,
+      contactId: Number(props.selectedContact?.id),
+      assigneeId: props.currentUser?.id,
+    };
+
+    // Add subject for email inboxes
+    if (inboxTypes.value.isEmail && state.subject) {
+      payload.mailSubject = state.subject;
+    }
+
+    const success = await emit('createConversation', {
+      payload,
       isFromWhatsApp: false,
     });
     if (success) {
@@ -393,7 +419,9 @@ const shouldShowMessageEditor = computed(() => {
         v-model="state.message"
         :message-signature="messageSignature"
         :send-with-signature="sendWithSignature"
+        :is-email-or-web-widget-inbox="inboxTypes.isEmailOrWebWidget"
         :has-errors="validationStates.isMessageInvalid"
+        :has-attachments="state.attachedFiles.length > 0"
         :channel-type="inboxChannelType"
         :medium="targetInbox?.medium || ''"
       />
@@ -428,6 +456,7 @@ const shouldShowMessageEditor = computed(() => {
       @send-message="handleSendMessage"
       @send-whatsapp-message="handleSendWhatsappMessage"
       @send-twilio-message="handleSendTwilioMessage"
+      @create-conversation-only="handleCreateConversationOnly"
     />
   </div>
 </template>

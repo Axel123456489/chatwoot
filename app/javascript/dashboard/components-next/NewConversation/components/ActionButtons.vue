@@ -8,7 +8,7 @@ import { useEventListener } from '@vueuse/core';
 import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import FileUpload from 'vue-upload-component';
-import { INBOX_TYPES } from 'dashboard/helper/inbox';
+import { extractTextFromMarkdown } from 'dashboard/helper/editorHelper';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import WhatsAppOptions from './WhatsAppOptions.vue';
@@ -40,6 +40,7 @@ const emit = defineEmits([
   'addSignature',
   'removeSignature',
   'attachFile',
+  'createConversationOnly',
 ]);
 
 const { t } = useI18n();
@@ -52,9 +53,16 @@ const generateUid = () => {
 
 const uploadAttachment = ref(null);
 const isEmojiPickerOpen = ref(false);
+const showWhatsAppWarning = ref(false);
 
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
+);
+
+const signatureToApply = computed(() =>
+  props.isEmailOrWebWidgetInbox
+    ? props.messageSignature
+    : extractTextFromMarkdown(props.messageSignature)
 );
 
 const {
@@ -81,20 +89,33 @@ const isRegularMessageMode = computed(() => {
   return !props.isWhatsappInbox && !props.isTwilioWhatsAppInbox;
 });
 
-const isVoiceInbox = computed(() => props.channelType === INBOX_TYPES.VOICE);
-
-const shouldShowSignatureButton = computed(() => {
-  return (
-    props.hasSelectedInbox && isRegularMessageMode.value && !isVoiceInbox.value
-  );
+const isWhatsAppChannel = computed(() => {
+  return props.isWhatsappInbox || props.isTwilioWhatsAppInbox;
 });
 
+const handleCreateConversationClick = () => {
+  if (isWhatsAppChannel.value) {
+    showWhatsAppWarning.value = true;
+  } else {
+    emit('createConversationOnly');
+  }
+};
+
+const confirmWhatsAppCreation = () => {
+  showWhatsAppWarning.value = false;
+  emit('createConversationOnly');
+};
+
+const cancelWhatsAppCreation = () => {
+  showWhatsAppWarning.value = false;
+};
+
 const setSignature = () => {
-  if (props.messageSignature) {
+  if (signatureToApply.value) {
     if (sendWithSignature.value) {
-      emit('addSignature', props.messageSignature);
+      emit('addSignature', signatureToApply.value);
     } else {
-      emit('removeSignature', props.messageSignature);
+      emit('removeSignature', signatureToApply.value);
     }
   }
 };
@@ -110,7 +131,7 @@ watch(
   () => props.hasSelectedInbox,
   newValue => {
     nextTick(() => {
-      if (newValue && !isVoiceInbox.value) setSignature();
+      if (newValue && props.isEmailOrWebWidgetInbox) setSignature();
     });
   },
   { immediate: true }
@@ -247,7 +268,7 @@ useEventListener(document, 'paste', onPaste);
         />
       </FileUpload>
       <Button
-        v-if="shouldShowSignatureButton"
+        v-if="hasSelectedInbox && isRegularMessageMode"
         icon="i-lucide-signature"
         color="slate"
         size="sm"
@@ -266,6 +287,15 @@ useEventListener(document, 'paste', onPaste);
         @click="emit('discard')"
       />
       <Button
+        v-if="hasSelectedInbox"
+        :label="t('COMPOSE_NEW_CONVERSATION.FORM.ACTION_BUTTONS.CREATE_ONLY')"
+        variant="faded"
+        size="sm"
+        class="!text-xs font-medium"
+        :disabled="isLoading"
+        @click="handleCreateConversationClick"
+      />
+      <Button
         v-if="isRegularMessageMode"
         :label="sendButtonLabel"
         size="sm"
@@ -274,6 +304,49 @@ useEventListener(document, 'paste', onPaste);
         :is-loading="isLoading"
         @click="emit('sendMessage')"
       />
+    </div>
+
+    <!-- WhatsApp Warning Modal -->
+    <div
+      v-if="showWhatsAppWarning"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="cancelWhatsAppCreation"
+    >
+      <div
+        class="bg-white dark:bg-n-slate-2 rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+      >
+        <div class="flex items-start gap-3 mb-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-n-amber-1 dark:bg-n-amber-2 rounded-full flex items-center justify-center"
+          >
+            <i class="i-lucide-alert-triangle text-n-amber-9 text-xl" />
+          </div>
+          <div class="flex-1">
+            <h3
+              class="text-lg font-semibold text-n-slate-12 dark:text-n-slate-12 mb-2"
+            >
+              {{ t('COMPOSE_NEW_CONVERSATION.FORM.WHATSAPP_WARNING.TITLE') }}
+            </h3>
+            <p class="text-sm text-n-slate-11 dark:text-n-slate-11">
+              {{ t('COMPOSE_NEW_CONVERSATION.FORM.WHATSAPP_WARNING.MESSAGE') }}
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <Button
+            :label="t('COMPOSE_NEW_CONVERSATION.FORM.WHATSAPP_WARNING.CANCEL')"
+            variant="faded"
+            color="slate"
+            size="sm"
+            @click="cancelWhatsAppCreation"
+          />
+          <Button
+            :label="t('COMPOSE_NEW_CONVERSATION.FORM.WHATSAPP_WARNING.CONFIRM')"
+            size="sm"
+            @click="confirmWhatsAppCreation"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>

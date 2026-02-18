@@ -35,6 +35,11 @@ Rails.application.configure do
   config.active_job.queue_adapter = :sidekiq
 
   Rails.application.routes.default_url_options = { host: ENV['FRONTEND_URL'] }
+  
+  # Configure ActiveStorage to use the correct host for URLs
+  config.after_initialize do
+    ActiveStorage::Current.url_options = { host: ENV['FRONTEND_URL'] }
+  end
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

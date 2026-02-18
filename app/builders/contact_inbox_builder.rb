@@ -44,7 +44,17 @@ class ContactInboxBuilder
     raise ActionController::ParameterMissing, 'contact phone number' unless @contact.phone_number
 
     # whatsapp doesn't want the + in e164 format
-    @contact.phone_number.delete('+').to_s
+    phone = @contact.phone_number.delete('+').to_s
+
+    # Normalize Mexico numbers: 52 → 521
+    normalize_mexico_phone(phone)
+  end
+
+  def normalize_mexico_phone(phone)
+    return phone unless phone.start_with?('52')
+    return phone if phone.start_with?('521')
+
+    phone.sub(/^52/, '521')
   end
 
   def twilio_source_id
@@ -54,7 +64,9 @@ class ContactInboxBuilder
     when 'sms'
       @contact.phone_number
     when 'whatsapp'
-      "whatsapp:#{@contact.phone_number}"
+      phone = @contact.phone_number.delete('+')
+      phone = normalize_mexico_phone(phone)
+      "whatsapp:+#{phone}"
     end
   end
 

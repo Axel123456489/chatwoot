@@ -3,8 +3,12 @@
 # Everywhere else we use conversation builder in partials folder
 
 json.meta do
-  json.sender do
-    json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
+  if conversation.contact.present?
+    json.sender do
+      json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
+    end
+  else
+    json.sender nil
   end
   json.channel conversation.inbox.try(:channel_type)
   if conversation.assigned_entity.is_a?(AgentBot)
@@ -27,13 +31,14 @@ json.meta do
 end
 
 json.id conversation.display_id
-if conversation.messages.where(account_id: conversation.account_id).last.blank?
-  json.messages []
+last_account_message = conversation.latest_account_message
+last_account_message ||= conversation.messages.where(account_id: conversation.account_id)
+                                     .includes([{ attachments: [{ file_attachment: [:blob] }] }]).last
+
+if last_account_message.present?
+  json.messages [last_account_message.push_event_data]
 else
-  json.messages [
-    conversation.messages.where(account_id: conversation.account_id)
-                .includes([{ attachments: [{ file_attachment: [:blob] }] }]).last.try(:push_event_data)
-  ]
+  json.messages []
 end
 
 json.account_id conversation.account_id
@@ -41,7 +46,7 @@ json.uuid conversation.uuid
 json.additional_attributes conversation.additional_attributes
 json.agent_last_seen_at conversation.agent_last_seen_at.to_i
 json.assignee_last_seen_at conversation.assignee_last_seen_at.to_i
-json.can_reply conversation.can_reply?
+json.can_reply(conversation.inbox.present? ? conversation.can_reply? : false)
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
 json.inbox_id conversation.inbox_id
@@ -54,7 +59,11 @@ json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
 json.unread_count conversation.unread_incoming_messages.count
-json.last_non_activity_message conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first.try(:push_event_data)
+
+last_non_activity_message = conversation.latest_non_activity_message
+last_non_activity_message ||= conversation.messages.where(account_id: conversation.account_id)
+                                          .non_activity_messages.first
+json.last_non_activity_message last_non_activity_message&.push_event_data
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i

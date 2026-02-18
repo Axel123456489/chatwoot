@@ -30,6 +30,14 @@ export const isOnUnattendedView = ({ route: { name: routeName } }) => {
   return UNATTENDED_ROUTES.includes(routeName);
 };
 
+export const isOnChatbotView = ({ route: { name: routeName } }) => {
+  const CHATBOT_ROUTES = [
+    'conversation_chatbot',
+    'conversation_through_chatbot',
+  ];
+  return CHATBOT_ROUTES.includes(routeName);
+};
+
 export const isOnFoldersView = ({ route: { name: routeName } }) => {
   const FOLDER_ROUTES = [
     'folder_conversations',

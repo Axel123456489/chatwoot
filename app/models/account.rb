@@ -22,7 +22,7 @@
 #  index_accounts_on_status  (status)
 #
 
-class Account < ApplicationRecord
+class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # used for single column multi flags
   include FlagShihTzu
   include Reportable
@@ -40,7 +40,7 @@ class Account < ApplicationRecord
         'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
-        'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+        'allow_agents_view_all_conversations': { 'type': %w[boolean null] },
         'conversation_required_attributes': {
           'type': %w[array null],
           'items': { 'type': 'string' }
@@ -87,9 +87,9 @@ class Account < ApplicationRecord
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
+  store_accessor :settings, :audio_transcriptions, :auto_resolve_label, :allow_agents_view_all_conversations,
+                 :conversation_required_attributes
   store_accessor :settings, :captain_models, :captain_features
-  store_accessor :settings, :keep_pending_on_bot_failure
 
   has_many :account_users, dependent: :destroy_async
   has_many :agent_bot_inboxes, dependent: :destroy_async
@@ -104,6 +104,7 @@ class Account < ApplicationRecord
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
   has_many :conversations, dependent: :destroy_async
+  has_many :whatsapp_calls, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
   has_many :custom_attribute_definitions, dependent: :destroy_async
   has_many :custom_filters, dependent: :destroy_async
@@ -132,6 +133,7 @@ class Account < ApplicationRecord
   has_many :web_widgets, dependent: :destroy_async, class_name: '::Channel::WebWidget'
   has_many :webhooks, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
+  has_many :waha_sessions, dependent: :destroy_async
   has_many :working_hours, dependent: :destroy_async
 
   has_one_attached :contacts_export
@@ -179,10 +181,32 @@ class Account < ApplicationRecord
     super.presence || ENV.fetch('MAILER_SENDER_EMAIL') { GlobalConfig.get('MAILER_SUPPORT_EMAIL')['MAILER_SUPPORT_EMAIL'] }
   end
 
+  def allow_agents_view_all_conversations?
+    !!ActiveModel::Type::Boolean.new.cast(allow_agents_view_all_conversations)
+  end
+
   def usage_limits
     {
       agents: ChatwootApp.max_limit.to_i,
       inboxes: ChatwootApp.max_limit.to_i
+    }
+  end
+
+  # Returns WAHA integration settings when properly configured and enabled.
+  # Requires the hook to be enabled and both base_url and api_key present.
+  def waha_integration
+    return nil unless feature_enabled?('waha_integration')
+
+    hook = hooks.enabled.find_by(app_id: 'waha')
+    return nil unless hook
+
+    settings = hook.settings || {}
+    return nil if settings['base_url'].blank? || settings['api_key'].blank?
+
+    {
+      'enabled' => true,
+      'base_url' => settings['base_url'],
+      'api_key' => settings['api_key']
     }
   end
 

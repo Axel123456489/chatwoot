@@ -6,7 +6,7 @@ class SlackUploadsController < ApplicationController
     if @blob
       redirect_to blob_url
     else
-      redirect_to avatar_url
+      redirect_to avatar_url, allow_other_host: true
     end
   end
 
@@ -26,7 +26,7 @@ class SlackUploadsController < ApplicationController
   end
 
   def avatar_url
-    base_url = ENV.fetch('FRONTEND_URL', nil)
+    base_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3000').gsub('0.0.0.0', 'localhost')
     "#{base_url}/integrations/slack/#{params[:sender_type]}.png"
   end
 end

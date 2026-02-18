@@ -1,0 +1,42 @@
+# Media Server Configuration for WhatsApp Calling
+# Direct P2P WebRTC connection between browser and WhatsApp API
+
+default: &default
+  enabled: <%= ENV.fetch('MEDIA_SERVER_ENABLED', 'true') %>
+  provider: <%= ENV.fetch('MEDIA_SERVER_PROVIDER', 'webrtc') %> # webrtc for P2P
+  
+  # Media server configuration (for SDP generation)
+  media_server:
+    public_host: <%= ENV.fetch('MEDIA_SERVER_PUBLIC_HOST', '') %>
+    public_port: <%= ENV.fetch('MEDIA_SERVER_PUBLIC_PORT', '50000') %>
+    
+  # STUN/TURN Servers for NAT traversal
+  ice_servers:
+    - urls: <%= ENV.fetch('STUN_SERVER_URL', 'stun:stun.l.google.com:19302') %>
+    - urls: <%= ENV.fetch('TURN_SERVER_URL', 'turn:turnserver.example.com:3478') %>
+      username: <%= ENV.fetch('TURN_USERNAME', '') %>
+      credential: <%= ENV.fetch('TURN_CREDENTIAL', '') %>
+  
+  # Audio codec preferences (Opus recommended for WebRTC)
+  audio_codecs:
+    - opus
+    - pcmu
+    - pcma
+  
+  # Call settings
+  max_call_duration: <%= ENV.fetch('MAX_CALL_DURATION', '3600').to_i %> # 1 hour in seconds
+  recording_enabled: <%= ENV.fetch('CALL_RECORDING_ENABLED', 'false') %>
+  recording_path: <%= ENV.fetch('CALL_RECORDING_PATH', 'storage/call_recordings') %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  enabled: false
+
+staging:
+  <<: *default
+
+production:
+  <<: *default

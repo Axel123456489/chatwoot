@@ -170,7 +170,7 @@ class SearchService
     contacts_query = apply_time_filter(contacts_query, 'last_activity_at') if current_account.feature_enabled?('advanced_search')
 
     @contacts = contacts_query.resolved_contacts(
-      use_crm_v2: current_account.feature_enabled?('crm_v2')
+      use_crm_v2: false
     ).order_on_last_activity_at('desc').page(params[:page]).per(15)
   end
 

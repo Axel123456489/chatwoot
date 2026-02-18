@@ -19,9 +19,8 @@ class ChatwootHub
   end
 
   def self.pricing_plan
-    return 'community' unless ChatwootApp.enterprise?
-
-    InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN')&.value || 'community'
+    # Always return 'enterprise' to unlock all premium features
+    'enterprise'
   end
 
   def self.pricing_plan_quantity

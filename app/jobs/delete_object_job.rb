@@ -2,6 +2,10 @@ class DeleteObjectJob < ApplicationJob
   queue_as :low
 
   BATCH_SIZE = 5_000
+  HEAVY_ASSOCIATIONS = {
+    Account => %i[conversations contacts inboxes reporting_events],
+    Inbox => %i[conversations contact_inboxes reporting_events]
+  }.freeze
 
   def perform(object, user = nil, ip = nil)
     # Pre-purge heavy associations for large objects to avoid
@@ -15,18 +19,11 @@ class DeleteObjectJob < ApplicationJob
 
   private
 
-  def heavy_associations
-    {
-      Account => %i[conversations contacts inboxes reporting_events],
-      Inbox => %i[conversations contact_inboxes reporting_events]
-    }.freeze
-  end
-
   def purge_heavy_associations(object)
-    klass = heavy_associations.keys.find { |k| object.is_a?(k) }
+    klass = HEAVY_ASSOCIATIONS.keys.find { |k| object.is_a?(k) }
     return unless klass
 
-    heavy_associations[klass].each do |assoc|
+    HEAVY_ASSOCIATIONS[klass].each do |assoc|
       next unless object.respond_to?(assoc)
 
       batch_destroy(object.public_send(assoc))

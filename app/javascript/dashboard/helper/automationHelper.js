@@ -124,12 +124,12 @@ export const getConditionOptions = ({
   customAttributes,
   inboxes,
   languages,
-  labels,
   statusFilterOptions,
   teams,
   type,
   priorityOptions,
   messageTypeOptions,
+  labels,
 }) => {
   if (isCustomAttributeCheckbox(customAttributes, type)) {
     return booleanFilterOptions;
@@ -169,19 +169,19 @@ export const getFileName = (action, files = []) => {
 
 export const getDefaultConditions = eventName => {
   if (eventName === 'message_created') {
-    return structuredClone(DEFAULT_MESSAGE_CREATED_CONDITION);
+    return DEFAULT_MESSAGE_CREATED_CONDITION;
   }
   if (
     eventName === 'conversation_opened' ||
     eventName === 'conversation_resolved'
   ) {
-    return structuredClone(DEFAULT_CONVERSATION_CONDITION);
+    return DEFAULT_CONVERSATION_CONDITION;
   }
-  return structuredClone(DEFAULT_OTHER_CONDITION);
+  return DEFAULT_OTHER_CONDITION;
 };
 
 export const getDefaultActions = () => {
-  return structuredClone(DEFAULT_ACTIONS);
+  return DEFAULT_ACTIONS;
 };
 
 export const filterCustomAttributes = customAttributes => {

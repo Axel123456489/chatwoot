@@ -24,10 +24,13 @@ import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
 import WidgetBuilder from './WidgetBuilder.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
+import WahaConfig from './components/WahaConfig.vue';
+import WhatsAppCallingSettings from '../../../../components/whatsapp/WhatsAppCallingSettings.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import SenderNameExamplePreview from './components/SenderNameExamplePreview.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
+import { WIDGET_BUILDER_EDITOR_MENU_OPTIONS } from 'dashboard/constants/editor';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 
@@ -55,6 +58,8 @@ export default {
     Editor,
     Avatar,
     AccountHealth,
+    WahaConfig,
+    WhatsAppCallingSettings,
   },
   mixins: [inboxMixin],
   setup() {
@@ -82,6 +87,7 @@ export default {
       selectedTabIndex: 0,
       selectedPortalSlug: '',
       showBusinessNameInput: false,
+      welcomeTaglineEditorMenuOptions: WIDGET_BUILDER_EDITOR_MENU_OPTIONS,
       healthData: null,
       isLoadingHealth: false,
       healthError: null,
@@ -187,6 +193,28 @@ export default {
           {
             key: 'whatsapp-health',
             name: this.$t('INBOX_MGMT.TABS.ACCOUNT_HEALTH'),
+          },
+        ];
+      }
+
+      // WAHA WhatsApp configuration tab
+      if (this.isWahaInbox) {
+        visibleToAllChannelTabs = [
+          ...visibleToAllChannelTabs,
+          {
+            key: 'waha-config',
+            name: this.$t('INBOX_MGMT.TABS.WAHA_CONFIG'),
+          },
+        ];
+      }
+
+      // WhatsApp Calling Settings tab
+      if (this.isAWhatsAppChannel) {
+        visibleToAllChannelTabs = [
+          ...visibleToAllChannelTabs,
+          {
+            key: 'calling-settings',
+            name: this.$t('INBOX_MGMT.TABS.CALLING_SETTINGS'),
           },
         ];
       }
@@ -302,6 +330,9 @@ export default {
         this.healthData.platform_type === 'NOT_APPLICABLE' ||
         this.healthData.throughput?.level === 'NOT_APPLICABLE'
       );
+    },
+    isWahaInbox() {
+      return this.isAPIInbox && this.inbox?.waha_session;
     },
   },
   watch: {
@@ -630,7 +661,7 @@ export default {
               )
             "
             :max-length="255"
-            channel-type="Context::InboxSettings"
+            :enabled-menu-options="welcomeTaglineEditorMenuOptions"
           />
 
           <label v-if="isAWebWidgetInbox" class="pb-4">
@@ -946,6 +977,15 @@ export default {
       </div>
       <div v-if="selectedTabKey === 'whatsapp-health'">
         <AccountHealth :health-data="healthData" />
+      </div>
+      <div v-if="selectedTabKey === 'waha-config'" class="mx-8">
+        <WahaConfig :inbox="inbox" />
+      </div>
+      <div
+        v-if="selectedTabKey === 'calling-settings' && isAWhatsAppChannel"
+        class="mx-8"
+      >
+        <WhatsAppCallingSettings :inbox="inbox" />
       </div>
     </section>
   </div>

@@ -34,7 +34,7 @@ class Conversations::MessageWindowService
   def last_message_in_messaging_window?(time)
     return false if last_incoming_message.nil?
 
-    Time.current < last_incoming_message.created_at + time
+    Time.current <= last_incoming_message.created_at + time
   end
 
   def api_messaging_window
@@ -61,7 +61,9 @@ class Conversations::MessageWindowService
   end
 
   def meta_messaging_window(config_key)
-    GlobalConfigService.load(config_key, nil) ? MESSAGING_WINDOW_7_DAYS : MESSAGING_WINDOW_24_HOURS
+    raw_flag = ENV.key?(config_key) ? ENV[config_key] : GlobalConfigService.load(config_key, nil)
+    flag = ActiveRecord::Type::Boolean.new.cast(raw_flag)
+    flag ? MESSAGING_WINDOW_7_DAYS : MESSAGING_WINDOW_24_HOURS
   end
 
   def last_incoming_message

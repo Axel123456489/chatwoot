@@ -84,6 +84,24 @@
         "PLACEHOLDER": "https://example.com/webhook",
         "REQUIRED": "Webhook URL is required"
       },
+      "N8N": {
+        "TITLE": "n8n Integration",
+        "MODE_LABEL": "Enable n8n native mode",
+        "START_ON_MESSAGE": "Start flow on first incoming message",
+        "START_ON_MESSAGE_HELP": "Triggers a new flow when a new conversation is created",
+        "START_ON_MANUAL_PENDING": "Start flow when agent marks pending",
+        "START_ON_MANUAL_PENDING_HELP": "Triggers a flow when an agent manually sets conversation to pending",
+        "START_ON_REOPEN": "Start flow when customer message reopens",
+        "START_ON_REOPEN_HELP": "When disabled, resolved conversations go to 'open' instead of 'pending' and no flow triggers",
+        "ALLOWED_STATUSES_LABEL": "Allowed conversation statuses",
+        "ALLOWED_STATUSES_HELP": "Flows start and forward only while the conversation is pending. Set the status back to pending to trigger a new flow.",
+        "STATUS": {
+          "open": "Open",
+          "pending": "Pending",
+          "resolved": "Resolved",
+          "snoozed": "Snoozed"
+        }
+      },
       "ERRORS": {
         "NAME": "Bot name is required",
         "URL": "Webhook URL is required",

@@ -168,7 +168,32 @@ export const FORMATTING = {
   },
 };
 
-// Editor menu options for Full Editor
+const DEFAULT_MESSAGE_MENU = [
+  'strong',
+  'em',
+  'code',
+  'link',
+  'strike',
+  'bulletList',
+  'orderedList',
+  'undo',
+  'redo',
+];
+
+const DEFAULT_SIGNATURE_MENU = [
+  'strong',
+  'em',
+  'link',
+  'undo',
+  'redo',
+  'imageUpload',
+];
+
+export const MESSAGE_EDITOR_MENU_OPTIONS =
+  FORMATTING['Context::Default']?.menu || DEFAULT_MESSAGE_MENU;
+export const MESSAGE_SIGNATURE_EDITOR_MENU_OPTIONS =
+  FORMATTING['Context::MessageSignature']?.menu || DEFAULT_SIGNATURE_MENU;
+
 export const ARTICLE_EDITOR_MENU_OPTIONS = [
   'strong',
   'em',
@@ -182,6 +207,14 @@ export const ARTICLE_EDITOR_MENU_OPTIONS = [
   'h3',
   'imageUpload',
   'code',
+];
+
+export const WIDGET_BUILDER_EDITOR_MENU_OPTIONS = [
+  'strong',
+  'em',
+  'link',
+  'undo',
+  'redo',
 ];
 
 /**
@@ -267,7 +300,6 @@ export const MARKDOWN_PATTERNS = [
   },
 ];
 
-// Editor image resize options for Message Editor
 export const MESSAGE_EDITOR_IMAGE_RESIZES = [
   {
     name: 'Small',

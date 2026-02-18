@@ -29,9 +29,11 @@ module Tiktok::IntegrationHelper
   end
 
   def token_payload(account_id)
+    issued_at = Time.current.to_i / 60 * 60
+
     {
       sub: account_id,
-      iat: Time.current.to_i
+      iat: issued_at
     }
   end
 

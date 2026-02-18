@@ -108,6 +108,19 @@ class MessageApi extends ApiClient {
       }
     );
   }
+
+  addReaction({ conversationId, messageId, emoji }) {
+    return axios.post(
+      `${this.url}/${conversationId}/messages/${messageId}/reactions`,
+      { emoji }
+    );
+  }
+
+  removeReaction({ conversationId, messageId, reactionId }) {
+    return axios.delete(
+      `${this.url}/${conversationId}/messages/${messageId}/reactions/${reactionId}`
+    );
+  }
 }
 
 export default new MessageApi();

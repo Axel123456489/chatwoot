@@ -16,10 +16,10 @@ import createAxios from 'dashboard/helper/APIHelper';
 
 import commonHelpers, { isJSONValid } from 'dashboard/helper/commons';
 import { sync } from 'vuex-router-sync';
-import { createPinia } from 'pinia';
 import router, { initalizeRouter } from 'dashboard/routes';
 import store from 'dashboard/store';
 import constants from 'dashboard/constants/globals';
+import { createPinia, setActivePinia } from 'pinia';
 import * as Sentry from '@sentry/vue';
 import {
   initializeAnalyticsEvents,
@@ -42,13 +42,15 @@ const i18n = createI18n({
 
 sync(store, router);
 
-const pinia = createPinia();
-
 const app = createApp(App);
 app.use(i18n);
 app.use(store);
-app.use(pinia);
 app.use(router);
+
+// Pinia is used by the new voice calls store; setActivePinia ensures stores work outside component setup.
+const pinia = createPinia();
+setActivePinia(pinia);
+app.use(pinia);
 
 // [VITE] Disabled this, need to renable later
 if (window.errorLoggingConfig) {

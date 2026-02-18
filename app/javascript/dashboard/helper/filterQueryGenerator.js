@@ -2,7 +2,39 @@ const setArrayValues = item => {
   return item.values[0]?.id ? item.values.map(val => val.id) : item.values;
 };
 
+// Normalize values for attribute_changed operator to shape: { from: [...], to: [...] }
+const normalizeAttributeChangedValues = item => {
+  const v = item.values || {};
+
+  const mapToComparable = val => {
+    // Convert value objects to ids, and special sentinel to null
+    if (val && typeof val === 'object' && 'id' in val) {
+      return val.id === '__NONE__' ? null : val.id;
+    }
+    return val === '__NONE__' ? null : val;
+  };
+
+  const normalize = val => {
+    if (Array.isArray(val)) {
+      return val.map(mapToComparable);
+    }
+    if (val === undefined || val === null || val === '') {
+      return [];
+    }
+    return [mapToComparable(val)];
+  };
+
+  return {
+    from: normalize(v.from),
+    to: normalize(v.to),
+  };
+};
+
 const generateValues = item => {
+  // Special handling for attribute_changed to preserve { from, to }
+  if (item.filter_operator === 'attribute_changed') {
+    return normalizeAttributeChangedValues(item);
+  }
   if (item.attribute_key === 'content') {
     const values = item.values || '';
     return values.split(',');

@@ -11,7 +11,6 @@ import BillingMeter from './components/BillingMeter.vue';
 import BillingCard from './components/BillingCard.vue';
 import BillingHeader from './components/BillingHeader.vue';
 import DetailItem from './components/DetailItem.vue';
-import PurchaseCreditsModal from './components/PurchaseCreditsModal.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import ButtonV4 from 'next/button/Button.vue';
@@ -24,7 +23,6 @@ const {
   documentLimits,
   responseLimits,
   fetchLimits,
-  isFetchingLimits,
 } = useCaptain();
 
 const uiFlags = useMapGetter('accounts/getUIFlags');
@@ -34,7 +32,6 @@ const BILLING_REFRESH_ATTEMPTED = 'billing_refresh_attempted';
 
 // State for handling refresh attempts and loading
 const isWaitingForBilling = ref(false);
-const purchaseCreditsModalRef = ref(null);
 
 const customAttributes = computed(() => {
   return currentAccount.value.custom_attributes || {};
@@ -46,11 +43,6 @@ const customAttributes = computed(() => {
  */
 const planName = computed(() => {
   return customAttributes.value.plan_name;
-});
-
-const canPurchaseCredits = computed(() => {
-  const plan = planName.value?.toLowerCase();
-  return plan && plan !== 'hacker';
 });
 
 /**
@@ -79,9 +71,8 @@ const hasABillingPlan = computed(() => {
 const fetchAccountDetails = async () => {
   if (!hasABillingPlan.value) {
     await store.dispatch('accounts/subscription');
+    fetchLimits();
   }
-  // Always fetch limits for billing page to show credit usage
-  fetchLimits();
 };
 
 const handleBillingPageLogic = async () => {
@@ -126,15 +117,6 @@ const onToggleChatWindow = () => {
   if (window.$chatwoot) {
     window.$chatwoot.toggle();
   }
-};
-
-const openPurchaseCreditsModal = () => {
-  purchaseCreditsModalRef.value?.open();
-};
-
-const handleTopupSuccess = () => {
-  // Refresh limits to show updated credit balance
-  fetchLimits();
 };
 
 onMounted(handleBillingPageLogic);
@@ -196,27 +178,9 @@ onMounted(handleBillingPageLogic);
           :description="$t('BILLING_SETTINGS.CAPTAIN.DESCRIPTION')"
         >
           <template #action>
-            <div class="flex gap-2">
-              <ButtonV4
-                sm
-                flushed
-                slate
-                icon="i-lucide-refresh-cw"
-                :is-loading="isFetchingLimits"
-                @click="fetchLimits"
-              >
-                {{ $t('BILLING_SETTINGS.CAPTAIN.REFRESH_CREDITS') }}
-              </ButtonV4>
-              <ButtonV4
-                v-if="canPurchaseCredits"
-                sm
-                solid
-                blue
-                @click="openPurchaseCreditsModal"
-              >
-                {{ $t('BILLING_SETTINGS.TOPUP.BUY_CREDITS') }}
-              </ButtonV4>
-            </div>
+            <ButtonV4 sm faded slate disabled>
+              {{ $t('BILLING_SETTINGS.CAPTAIN.BUTTON_TXT') }}
+            </ButtonV4>
           </template>
           <div v-if="captainLimits && responseLimits" class="px-5">
             <BillingMeter
@@ -259,10 +223,6 @@ onMounted(handleBillingPageLogic);
           </ButtonV4>
         </BillingHeader>
       </section>
-      <PurchaseCreditsModal
-        ref="purchaseCreditsModalRef"
-        @success="handleTopupSuccess"
-      />
     </template>
   </SettingsLayout>
 </template>

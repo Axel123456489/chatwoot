@@ -1,4 +1,6 @@
-class Captain::Llm::AssistantChatService < Llm::BaseAiService
+require 'openai'
+
+class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
   include Captain::ChatHelper
 
   def initialize(assistant: nil, conversation_id: nil)
@@ -6,10 +8,9 @@ class Captain::Llm::AssistantChatService < Llm::BaseAiService
 
     @assistant = assistant
     @conversation_id = conversation_id
-
     @messages = [system_message]
     @response = ''
-    @tools = build_tools
+    register_tools
   end
 
   # additional_message: A single message (String) from the user that should be appended to the chat.
@@ -27,8 +28,9 @@ class Captain::Llm::AssistantChatService < Llm::BaseAiService
 
   private
 
-  def build_tools
-    [Captain::Tools::SearchDocumentationService.new(@assistant, user: nil)]
+  def register_tools
+    @tool_registry = Captain::ToolRegistryService.new(@assistant, user: nil)
+    @tool_registry.register_tool(Captain::Tools::SearchDocumentationService)
   end
 
   def system_message
@@ -43,6 +45,6 @@ class Captain::Llm::AssistantChatService < Llm::BaseAiService
   end
 
   def feature_name
-    'assistant'
+    'assistant_chat'
   end
 end

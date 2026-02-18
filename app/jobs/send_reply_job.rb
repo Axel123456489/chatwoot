@@ -17,6 +17,10 @@ class SendReplyJob < ApplicationJob
 
   def perform(message_id)
     message = Message.find(message_id)
+
+    # Skip voice call messages - they are sent via WhatsApp Cloud API calling endpoint
+    return if message.content_type == 'voice_call'
+
     channel_name = message.conversation.inbox.channel.class.to_s
 
     return send_on_facebook_page(message) if channel_name == 'Channel::FacebookPage'

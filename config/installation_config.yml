@@ -170,6 +170,35 @@
   locked: false
 # ------- End of WhatsApp Channel Related Config ------- #
 
+# ------- WhatsApp Calling Related Config ------- #
+- name: MEDIA_SERVER_ENABLED
+  display_title: 'Media Server Enabled'
+  description: 'Enable media server for WhatsApp calling (P2P WebRTC)'
+  value: 'true'
+  locked: false
+  type: boolean
+- name: MEDIA_SERVER_PUBLIC_HOST
+  display_title: 'Media Server Public Host'
+  description: 'Public hostname/IP for media server (for ICE candidates)'
+  locked: false
+- name: MEDIA_SERVER_PUBLIC_PORT
+  display_title: 'Media Server Public Port'
+  description: 'Public port for media server (default: 50000)'
+  value: '50000'
+  locked: false
+- name: CALL_RECORDING_ENABLED
+  display_title: 'Call Recording Enabled (Global)'
+  description: 'Enable call recording globally. Can be overridden per inbox in calling settings.'
+  value: 'false'
+  locked: false
+  type: boolean
+- name: CALL_RECORDING_PATH
+  display_title: 'Call Recording Path (Global)'
+  description: 'Default path for storing call recordings temporarily before upload to cloud'
+  value: '/storage/call_recordings'
+  locked: false
+# ------- End of WhatsApp Calling Related Config ------- #
+
 # MARK: Microsoft Email Channel Config
 - name: AZURE_APP_ID
   display_title: 'Azure App ID'

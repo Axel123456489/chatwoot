@@ -22,7 +22,8 @@ module ActivityMessageHandler
   end
 
   def handle_status_change(user_name)
-    return unless saved_change_to_status?
+    # Check both current and preserved status changes (preserved by auto-assignment)
+    return unless saved_change_to_status? || @preserved_status_change.present?
 
     status_change_activity(user_name)
   end
@@ -53,7 +54,17 @@ module ActivityMessageHandler
                 user_status_change_activity_content(user_name)
               end
 
-    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
+    unless content
+      status_change = previous_changes.slice('status', :status)
+      Rails.logger.info(
+        "[ActivityMessage] Skipped status change activity conversation_id=#{id} status=#{status} user_name=#{user_name.inspect} " \
+        "executed_by_class=#{Current.executed_by&.class} " \
+        "saved_change_to_status=#{saved_change_to_status?.inspect} status_change=#{status_change}"
+      )
+      return
+    end
+
+    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content))
   end
 
   def auto_resolve_message_key(minutes)
@@ -83,6 +94,8 @@ module ActivityMessageHandler
     elsif Current.executed_by.instance_of?(Contact)
       Current.executed_by = nil
       I18n.t('conversations.activity.status.system_auto_open')
+    elsif Current.executed_by.instance_of?(AgentBot)
+      I18n.t("conversations.activity.status.#{status}", user_name: Current.executed_by.name)
     end
   end
 

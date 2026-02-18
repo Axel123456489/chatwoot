@@ -78,8 +78,9 @@ export const actions = {
     }
   },
   uploadAttachment: async (_, file) => {
-    const { blobId } = await uploadFile(file);
-    return blobId;
+    const { blobId, fileUrl } = await uploadFile(file);
+    // Return both values so callers can use blobId for backend and fileUrl for preview/open
+    return { blobId, fileUrl };
   },
 };
 

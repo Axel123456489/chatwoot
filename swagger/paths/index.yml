@@ -368,6 +368,13 @@
   post:
     $ref: ./application/conversation/toggle_priority.yml
 
+/api/v1/accounts/{account_id}/conversations/{conversation_id}/merge_messages:
+  parameters:
+    - $ref: '#/components/parameters/account_id'
+    - $ref: '#/components/parameters/conversation_id'
+  post:
+    $ref: ./application/conversation/merge_messages.yml
+
 /api/v1/accounts/{account_id}/conversations/{conversation_id}/custom_attributes:
   parameters:
     - $ref: '#/components/parameters/account_id'

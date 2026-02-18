@@ -62,6 +62,10 @@ class InboxPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def update_channel_settings?
+    @account_user.administrator?
+  end
+
   def health?
     @account_user.administrator?
   end

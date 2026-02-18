@@ -83,6 +83,18 @@ export default {
               },
             },
             {
+              path: 'waha/:session_id/qr',
+              name: 'settings_inbox_waha_qr',
+              component: () => import('./channels/WahaQRCode.vue'),
+              meta: {
+                featureFlag: FEATURE_FLAGS.INBOX_MANAGEMENT,
+                permissions: ['administrator'],
+              },
+              props: route => ({
+                sessionId: route.params.session_id,
+              }),
+            },
+            {
               path: ':inbox_id/agents',
               name: 'settings_inboxes_add_agents',
               meta: {

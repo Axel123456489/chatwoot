@@ -12,6 +12,8 @@ import ComposeConversation from 'dashboard/components-next/NewConversation/Compo
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
+import WhatsAppCallButton from 'dashboard/components-next/Contacts/WhatsAppCallButton.vue';
+import MergeMessagesModal from 'dashboard/modules/contact/MergeMessagesModal.vue';
 
 import {
   isAConversationRoute,
@@ -30,6 +32,8 @@ export default {
     SocialIcons,
     ContactMergeModal,
     VoiceCallButton,
+    WhatsAppCallButton,
+    MergeMessagesModal,
   },
   props: {
     contact: {
@@ -51,11 +55,16 @@ export default {
   data() {
     return {
       showEditModal: false,
+      showMergeModal: false,
       showDeleteModal: false,
+      showMergeMessagesModal: false,
     };
   },
   computed: {
-    ...mapGetters({ uiFlags: 'contacts/getUIFlags' }),
+    ...mapGetters({
+      uiFlags: 'contacts/getUIFlags',
+      currentChat: 'getSelectedChat',
+    }),
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
     },
@@ -166,8 +175,17 @@ export default {
         );
       }
     },
+    closeMergeModal() {
+      this.showMergeModal = false;
+    },
     openMergeModal() {
-      this.$refs.mergeModal?.open();
+      this.showMergeModal = true;
+    },
+    closeMergeMessagesModal() {
+      this.showMergeMessagesModal = false;
+    },
+    openMergeMessagesModal() {
+      this.showMergeMessagesModal = true;
     },
   },
 };
@@ -285,6 +303,15 @@ export default {
           slate
           faded
         />
+        <WhatsAppCallButton
+          :phone="contact.phone_number"
+          :contact-id="contact.id"
+          :conversation-inbox-id="currentChat.inbox_id"
+          icon="i-logos-whatsapp-icon"
+          size="sm"
+          slate
+          faded
+        />
         <NextButton
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
           icon="i-ph-pencil-simple"
@@ -301,6 +328,15 @@ export default {
           sm
           :disabled="uiFlags.isMerging"
           @click="openMergeModal"
+        />
+        <NextButton
+          v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_MESSAGES')"
+          icon="i-lucide-git-merge"
+          slate
+          faded
+          sm
+          :disabled="!currentChat.id"
+          @click="openMergeMessagesModal"
         />
         <NextButton
           v-if="isAdmin"
@@ -320,7 +356,18 @@ export default {
         :contact="contact"
         @cancel="toggleEditModal"
       />
-      <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
+      <ContactMergeModal
+        v-if="showMergeModal"
+        :primary-contact="contact"
+        :show="showMergeModal"
+        @close="closeMergeModal"
+      />
+      <MergeMessagesModal
+        v-if="showMergeMessagesModal"
+        :show="showMergeMessagesModal"
+        :current-chat="currentChat"
+        @cancel="closeMergeMessagesModal"
+      />
     </div>
     <woot-delete-modal
       v-if="showDeleteModal"

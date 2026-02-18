@@ -15,10 +15,45 @@
       },
       "ERROR": "There was an error connecting to Shopify. Please try again or contact support if the issue persists."
     },
+    "WAHA": {
+      "DELETE": {
+        "TITLE": "Delete WAHA Integration",
+        "MESSAGE": "Are you sure you want to delete the WAHA integration? This will not affect existing WhatsApp inboxes."
+      },
+      "FORM": {
+        "TITLE": "Configure WAHA Server",
+        "REQUIRED_FIELDS": "Please fill in all required fields.",
+        "INVALID_URL": "Please enter a valid URL.",
+        "BASE_URL": {
+          "LABEL": "WAHA Server URL",
+          "PLACEHOLDER": "https://waha.example.com",
+          "HELP": "The base URL of your WAHA server instance."
+        },
+        "API_KEY": {
+          "LABEL": "API Key",
+          "PLACEHOLDER": "Enter your WAHA API key",
+          "HELP": "The API key configured in your WAHA server."
+        }
+      },
+      "SUCCESS": "WAHA integration configured successfully.",
+      "UPDATE_SUCCESS": "WAHA settings updated successfully.",
+      "DELETE_SUCCESS": "WAHA integration deleted successfully.",
+      "DELETE_ERROR": "Failed to delete WAHA integration. Please try again.",
+      "ERROR": "There was an error connecting to WAHA server. Please check your settings and try again.",
+      "CONNECTED": {
+        "TITLE": "WAHA Connected",
+        "DESCRIPTION": "Your WAHA server is connected. You can now create WhatsApp inboxes using WAHA.",
+        "CREATE_INBOX": "Create WhatsApp Inbox",
+        "UPDATE_SETTINGS": "Update Settings"
+      }
+    },
     "HEADER": "Integrations",
     "DESCRIPTION": "Chatwoot integrates with multiple tools and services to improve your team's efficiency. Explore the list below to configure your favorite apps.",
     "LEARN_MORE": "Learn more about integrations",
     "LOADING": "Fetching integrations",
+    "DISCONNECT": {
+      "BUTTON_TEXT": "Disconnect"
+    },
     "CAPTAIN": {
       "DISABLED": "Captain is not enabled on your account.",
       "CLICK_HERE_TO_CONFIGURE": "Click here to configure",

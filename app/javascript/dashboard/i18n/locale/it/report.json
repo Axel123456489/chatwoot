@@ -479,6 +479,13 @@
       "CONVERSATIONS": "{count} conversazioni",
       "DOWNLOAD_REPORT": "Scarica report"
     },
+    "RESOLUTION_HEATMAP": {
+      "HEADER": "Risoluzioni",
+      "NO_CONVERSATIONS": "Nessuna conversazione",
+      "CONVERSATION": "{count} conversazione",
+      "CONVERSATIONS": "{count} conversazioni",
+      "DOWNLOAD_REPORT": "Scarica report"
+    },
     "AGENT_CONVERSATIONS": {
       "HEADER": "Conversazioni per operatore",
       "LOADING_MESSAGE": "Caricamento metriche operatori...",

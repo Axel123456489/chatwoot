@@ -353,6 +353,47 @@
           "ERROR_MESSAGE": "We were not able to create the voice channel"
         }
       },
+      "WAHA": {
+        "TITLE": "WAHA WhatsApp",
+        "DESC": "Conecta WhatsApp usando WAHA (WhatsApp HTTP API) sin necesidad de la API oficial.",
+        "INBOX_NAME": {
+          "LABEL": "Nombre del inbox",
+          "PLACEHOLDER": "Ingresa un nombre para este inbox de WhatsApp"
+        },
+        "NAME_REQUIRED": "Por favor ingresa un nombre para el inbox",
+        "INTEGRATION_NOT_ENABLED_TITLE": "Integración WAHA no habilitada",
+        "INTEGRATION_NOT_ENABLED_MESSAGE": "Debes configurar la integración de WAHA antes de crear un inbox de WhatsApp.",
+        "GO_TO_INTEGRATION_SETTINGS": "Ir a configuración de integración",
+        "INTEGRATION_CHECK_ERROR": "No se pudo verificar el estado de la integración WAHA",
+        "CHECKING_INTEGRATION": "Verificando integración WAHA...",
+        "WHAT_IS_WAHA_TITLE": "¿Qué es WAHA?",
+        "WHAT_IS_WAHA_DESCRIPTION": "WAHA (WhatsApp HTTP API) te permite conectar WhatsApp sin la API oficial de negocios.",
+        "FEATURES": {
+          "NO_OFFICIAL_API": "No requiere la API oficial de WhatsApp Business",
+          "QR_CODE": "Conecta escaneando un código QR con tu teléfono",
+          "MULTI_DEVICE": "Soporta modo multidispositivo de WhatsApp"
+        },
+        "CREATE_CHANNEL": "Crear inbox de WhatsApp",
+        "QR_CODE_TITLE": "Escanea el código QR",
+        "QR_CODE_DESCRIPTION": "Abre WhatsApp en tu teléfono, ve a Ajustes > Dispositivos vinculados > Vincular dispositivo y escanea este código QR.",
+        "QR_CODE_EXPIRES": "El código QR expira en {seconds} segundos",
+        "QR_CODE_ERROR": "No se pudo cargar el código QR",
+        "REFRESH_QR": "Actualizar código QR",
+        "CONNECTED": "¡WhatsApp conectado!",
+        "TRY_AGAIN": "Intentar de nuevo",
+        "STATUS": {
+          "PENDING": "Pendiente",
+          "STARTING": "Iniciando...",
+          "SCAN_QR": "Escanea el código QR",
+          "CONNECTING": "Conectando...",
+          "CONNECTED": "Conectado",
+          "FAILED": "Fallido",
+          "STOPPED": "Detenido"
+        },
+        "API": {
+          "ERROR_MESSAGE": "No se pudo crear el inbox de WhatsApp con WAHA"
+        }
+      },
       "API_CHANNEL": {
         "TITLE": "Canal API",
         "DESC": "Integre con API channel y comienze a dar soporte a sus clientes.",
@@ -521,6 +562,93 @@
         "ERROR_MESSAGE": "Se ha producido un error al conectar a Google, por favor inténtelo nuevamente"
       }
     },
+    "WAHA": {
+      "NOT_CONFIGURED": "WAHA WhatsApp no está configurado para este inbox.",
+      "CONNECTION_STATUS": "Estado de Conexión",
+      "CONNECTION_STATUS_DESC": "Estado actual de conexión de WhatsApp y número de teléfono",
+      "CONNECTED_DESC": "WhatsApp está conectado y listo para recibir mensajes.",
+      "NEEDS_QR_DESC": "Escanea el código QR con WhatsApp para conectar esta sesión.",
+      "REFRESH_STATUS": "Actualizar Estado",
+      "PHONE_NUMBER": "Número de Teléfono",
+      "SESSION_DETAILS": "Detalles de Sesión",
+      "SESSION_DETAILS_DESC": "Identificadores de sesión y configuración de webhook",
+      "SCAN_QR_DESC": "Abre WhatsApp en tu teléfono, ve a Ajustes > Dispositivos Vinculados > Vincular un Dispositivo y escanea el código QR.",
+      "SESSION_MANAGEMENT": "Gestión de Sesión",
+      "SESSION_MANAGEMENT_DESC": "Acciones para gestionar y solucionar problemas de tu sesión WAHA",
+      "RESTART": "Reiniciar sesión",
+      "RESTART_DESC": "Reinicia la sesión WAHA para reconectar WhatsApp",
+      "RESTART_SUCCESS": "Reinicio de sesión WAHA iniciado correctamente.",
+      "RESTART_ERROR": "No se pudo reiniciar la sesión WAHA. Inténtalo nuevamente.",
+      "RECREATE_APP": "Recrear App",
+      "RECREATE_APP_DESC": "Recrea la configuración de la app Chatwoot en WAHA",
+      "LOGOUT": "Cerrar sesión",
+      "LOGOUT_DESC": "Desconecta WhatsApp de esta sesión (requiere nuevo escaneo QR)",
+      "LOGOUT_SUCCESS": "Sesión de WhatsApp cerrada correctamente.",
+      "LOGOUT_ERROR": "No se pudo cerrar sesión en WhatsApp. Inténtalo nuevamente.",
+      "SESSION_INFO": "Información de la sesión",
+      "SESSION_NAME": "Nombre de la sesión",
+      "PRESENCE": "Presencia:",
+      "ENGINE": "Motor",
+      "WAHA_STATUS_LABEL": "Estado WAHA",
+      "QR_SCAN_TITLE": "Escanear con WhatsApp",
+      "QR_SCAN_INSTRUCTIONS": "Abre WhatsApp en tu teléfono → Ajustes → Dispositivos Vinculados → Vincular un Dispositivo",
+      "INTEGRATION_CONFIG_TITLE": "Configuración de Integración",
+      "WAHA_APP_ID": "ID de App WAHA",
+      "WEBHOOK_URL": "URL de Webhook",
+      "WAHA_SERVER_URL": "URL del Servidor WAHA",
+      "INBOX_IDENTIFIER": "Identificador de Inbox",
+      "APP_SETTINGS_TITLE": "Configuración de Aplicación",
+      "INTERNAL_REFERENCES_TITLE": "Referencias Internas",
+      "LOCALE": "Idioma",
+      "LINK_PREVIEW": "Vista Previa de Enlaces",
+      "STATUS": "Estado",
+      "ENABLED": "Habilitado",
+      "DISABLED": "Deshabilitado",
+      "ACCOUNT_ID": "ID de Cuenta",
+      "INBOX_ID": "ID de Inbox",
+      "SESSION_NAME_LABEL": "Nombre de Sesión",
+      "INBOX_IDENTIFIER_LABEL": "Identificador de Inbox",
+      "WEBHOOK_URL_LABEL": "URL de Webhook",
+      "WAHA_DETAILS_TITLE": "Detalles de Aplicación WAHA",
+      "WAHA_DETAILS_DESC": "Detalles técnicos del servidor WAHA",
+      "APP_INFO": {
+        "TITLE": "Detalles de Aplicación WAHA",
+        "SUBTITLE": "Configuración e información técnica del servidor WAHA"
+      },
+      "ADVANCED": {
+        "TITLE": "Configuración Avanzada",
+        "SUBTITLE": "Configura parámetros avanzados de la sesión WAHA",
+        "SOURCE_OF_TRUTH": "WAHA es la Fuente de Verdad",
+        "SOURCE_OF_TRUTH_DESC": "La configuración siempre se carga desde el servidor WAHA. Los cambios hechos en el Dashboard de WAHA se reflejarán aquí.",
+        "SYNC_FROM_WAHA": "Sincronizar desde WAHA",
+        "SYNC_SUCCESS": "Configuración sincronizada exitosamente desde el servidor WAHA",
+        "SYNC_ERROR": "No se pudo sincronizar la configuración desde WAHA",
+        "RELOAD": "Recargar desde WAHA",
+        "DEBUG": "Modo Debug",
+        "DEBUG_DESC": "Habilita logs detallados para esta sesión (útil para solucionar problemas)",
+        "METADATA": "Metadatos",
+        "METADATA_DESC": "Almacena pares clave-valor personalizados para tu referencia (formato JSON)",
+        "METADATA_PARSE_ERROR": "Formato JSON inválido en el campo de metadatos",
+        "IGNORE_TITLE": "Ignorar Tipos de Chat",
+        "IGNORE_DESC": "Filtra eventos de tipos de chat específicos para ahorrar recursos",
+        "IGNORE_GROUPS": "Ignorar Grupos",
+        "IGNORE_CHANNELS": "Ignorar Canales",
+        "IGNORE_STATUS": "Ignorar Estados",
+        "IGNORE_BROADCAST": "Ignorar Listas de Difusión",
+        "PROXY_TITLE": "Configuración de Proxy",
+        "PROXY_DESC": "Configura servidor proxy para la conexión de WhatsApp",
+        "PROXY_SERVER": "Servidor Proxy",
+        "PROXY_USERNAME": "Usuario (opcional)",
+        "PROXY_PASSWORD": "Contraseña (opcional)",
+        "NOWEB_TITLE": "Configuración de Almacenamiento NOWEB",
+        "NOWEB_DESC": "Configura el almacenamiento de sesión para el motor NOWEB",
+        "NOWEB_ENABLED": "Habilitar Almacenamiento",
+        "NOWEB_FULL_SYNC": "Sincronización Completa",
+        "SAVE": "Guardar Configuración",
+        "CONFIG_SAVED": "Configuración guardada exitosamente. La sesión se reiniciará para aplicar los cambios.",
+        "CONFIG_ERROR": "No se pudo guardar la configuración. Inténtalo nuevamente."
+      }
+    },
     "DETAILS": {
       "LOADING_FB": "Autenticándote con Facebook...",
       "ERROR_FB_LOADING": "Error al cargar Facebook SDK. Deshabilite cualquier bloqueador de anuncios e inténtelo de nuevo desde un navegador diferente.",
@@ -623,7 +751,8 @@
       "WIDGET_BUILDER": "Constructor de Widget",
       "BOT_CONFIGURATION": "Configuración del bot",
       "ACCOUNT_HEALTH": "Account Health",
-      "CSAT": "Encuestas de Satisfacción"
+      "CSAT": "Encuestas de Satisfacción",
+      "WAHA_CONFIG": "WhatsApp (WAHA)"
     },
     "ACCOUNT_HEALTH": {
       "TITLE": "Manage your WhatsApp account",
@@ -1052,6 +1181,28 @@
       "INSTAGRAM": "Instagram",
       "TIKTOK": "TikTok",
       "VOICE": "Voice"
+    }
+  },
+  "WHATSAPP_CALLS": {
+    "SETTINGS": {
+      "TITLE": "Llamadas de WhatsApp",
+      "DESCRIPTION": "Habilita y configura las funciones de llamadas de WhatsApp Business API para esta bandeja de entrada.",
+      "LOADING": "Cargando configuración de llamadas...",
+      "ENABLE_CALLING": "Habilitar Llamadas",
+      "ENABLE_CALLING_HELP": "Permitir a los agentes hacer y recibir llamadas de WhatsApp Business API",
+      "STUN_TURN": "Servidores STUN/TURN",
+      "STUN_SERVERS": "Servidores STUN",
+      "STUN_SERVERS_PLACEHOLDER": "stun:stun.l.google.com:19302\nstun:stun1.l.google.com:19302",
+      "STUN_SERVERS_HELP": "Un servidor por línea. Los servidores STUN ayudan a establecer conexiones peer-to-peer.",
+      "QUALITY": "Calidad de Llamada",
+      "AUDIO_CODEC": "Códec de Audio",
+      "AUDIO_CODEC_HELP": "Opus proporciona la mejor calidad y es recomendado para la mayoría de los casos",
+      "RECOMMENDED": "Recomendado",
+      "CANCEL": "Cancelar",
+      "SAVE": "Guardar Configuración",
+      "SUCCESS": "Configuración de llamadas actualizada correctamente",
+      "ERROR_LOADING": "Error al cargar la configuración de llamadas",
+      "ERROR_SAVING": "Error al guardar la configuración de llamadas"
     }
   }
 }

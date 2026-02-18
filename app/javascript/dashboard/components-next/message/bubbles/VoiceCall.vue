@@ -5,6 +5,7 @@ import { MESSAGE_TYPES, VOICE_CALL_STATUS } from '../constants';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import BaseBubble from 'next/message/bubbles/Base.vue';
+import WhatsAppCallMessage from 'dashboard/components/whatsapp/WhatsAppCallMessage.vue';
 
 const LABEL_MAP = {
   [VOICE_CALL_STATUS.IN_PROGRESS]: 'CONVERSATION.VOICE_CALL.CALL_IN_PROGRESS',
@@ -30,10 +31,15 @@ const BG_COLOR_MAP = {
   [VOICE_CALL_STATUS.FAILED]: 'bg-n-ruby-9',
 };
 
-const { contentAttributes, messageType } = useMessageContext();
+const { contentAttributes, messageType, message } = useMessageContext();
 
 const data = computed(() => contentAttributes.value?.data);
 const status = computed(() => data.value?.status?.toString());
+
+// Check if this is a WhatsApp call message (has call_status field)
+const isWhatsAppCall = computed(() => {
+  return message.value?.callStatus !== undefined;
+});
 
 const isOutbound = computed(() => messageType.value === MESSAGE_TYPES.OUTGOING);
 const isFailed = computed(() =>
@@ -73,7 +79,11 @@ const bgColor = computed(() => BG_COLOR_MAP[status.value] || 'bg-n-teal-9');
 </script>
 
 <template>
-  <BaseBubble class="p-0 border-none" hide-meta>
+  <!-- Use WhatsApp-specific component for WhatsApp calls -->
+  <WhatsAppCallMessage v-if="isWhatsAppCall && message" :message="message" />
+
+  <!-- Use default voice call component for other calls -->
+  <BaseBubble v-else class="p-0 border-none" hide-meta>
     <div class="flex overflow-hidden flex-col w-full max-w-xs">
       <div class="flex gap-3 items-center p-3 w-full">
         <div

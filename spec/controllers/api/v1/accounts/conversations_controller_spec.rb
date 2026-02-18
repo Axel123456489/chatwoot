@@ -330,7 +330,6 @@ RSpec.describe 'Conversations API', type: :request do
       context 'when it is an authenticated user who has access to the inbox' do
         before do
           create(:inbox_member, user: agent, inbox: inbox)
-          create(:team_member, user: agent, team: team)
         end
 
         it 'creates a new conversation' do
@@ -1055,6 +1054,62 @@ RSpec.describe 'Conversations API', type: :request do
         end.to have_enqueued_job(DeleteObjectJob).with(other_conversation, administrator, anything)
 
         expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/{account.id}/conversations/:id/merge_messages' do
+    let(:conversation) { create(:conversation, account: account) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:target_conversation) { create(:conversation, account: account, inbox: conversation.inbox) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/merge_messages"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated agent with access to inbox' do
+      before do
+        create(:inbox_member, user: agent, inbox: conversation.inbox)
+        create(:message, conversation: conversation, account: account, inbox: conversation.inbox, message_type: 'incoming')
+      end
+
+      it 'merges the messages and deletes the source conversation' do
+        expect(conversation.messages.count).to eq(1)
+        expect(target_conversation.messages.count).to eq(0)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/merge_messages",
+             headers: agent.create_new_auth_token,
+             params: { target_id: target_conversation.display_id },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(target_conversation.reload.messages.count).to eq(1)
+        # Verify the source conversation is deleted
+        expect { conversation.reload }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+
+      it 'returns error when target conversation does not exist' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/merge_messages",
+             headers: agent.create_new_auth_token,
+             params: { target_id: 'invalid-id' },
+             as: :json
+
+        expect(response).to have_http_status(:not_found)
+      end
+
+      it 'returns error when target and source are the same' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/merge_messages",
+             headers: agent.create_new_auth_token,
+             params: { target_id: conversation.display_id },
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Source and target conversations are the same')
       end
     end
   end

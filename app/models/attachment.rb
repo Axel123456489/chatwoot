@@ -53,6 +53,11 @@ class Attachment < ApplicationRecord
     file.attached? ? url_for(file) : ''
   end
 
+  # Simple alias used by some callers/tests
+  def data_url
+    file_url
+  end
+
   # NOTE: for External services use this methods since redirect doesn't work effectively in a lot of cases
   def download_url
     ActiveStorage::Current.url_options = Rails.application.routes.default_url_options if ActiveStorage::Current.url_options.blank?
@@ -103,7 +108,8 @@ class Attachment < ApplicationRecord
     audio_file_data = base_data.merge(file_metadata)
     audio_file_data.merge(
       {
-        transcribed_text: meta&.[]('transcribed_text') || ''
+        transcribed_text: meta&.[]('transcribed_text') || '',
+        duration: meta&.[]('duration') || file.metadata[:duration]
       }
     )
   end

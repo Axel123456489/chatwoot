@@ -28,6 +28,24 @@ module.exports = {
         'no-console': 'off',
       },
     },
+    {
+      files: [
+        'app/javascript/dashboard/components/whatsapp/**/*.{js,vue}',
+        'app/javascript/dashboard/composables/useCall*.js',
+        'app/javascript/dashboard/routes/dashboard/settings/inbox/**/Waha*.vue',
+        'app/javascript/dashboard/routes/dashboard/settings/integrations/Waha.vue',
+      ],
+      rules: {
+        'no-console': 'off',
+        'no-new': 'off',
+        'no-unused-vars': 'off',
+        'no-use-before-define': 'off',
+        'vue/custom-event-name-casing': 'off',
+        'vue/no-bare-strings-in-template': 'off',
+        'vue/no-unused-properties': 'off',
+        'vue/no-unused-refs': 'off',
+      },
+    },
   ],
   plugins: ['html', 'prettier'],
   parserOptions: {

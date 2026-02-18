@@ -2,7 +2,7 @@ FactoryBot.define do
   factory :channel_whatsapp, class: 'Channel::Whatsapp' do
     sequence(:phone_number) { |n| "+123456789#{n}1" }
     account
-    provider_config { { 'api_key' => 'test_key', 'phone_number_id' => 'random_id' } }
+    provider_config { { 'api_key' => 'test_key', 'phone_number_id' => '123456789', 'business_account_id' => '123456789' } }
     message_templates do
       [{ 'name' => 'sample_shipping_confirmation',
          'status' => 'approved',
@@ -87,8 +87,8 @@ FactoryBot.define do
     message_templates_last_updated { Time.now.utc }
 
     transient do
-      sync_templates { true }
-      validate_provider_config { true }
+      sync_templates { false }
+      validate_provider_config { false }
     end
 
     before(:create) do |channel_whatsapp, options|
@@ -99,13 +99,12 @@ FactoryBot.define do
         # Add 'source' => 'embedded_signup' to skip after_commit :setup_webhooks callback in tests
         # The callback is for manual setup flow; embedded signup handles webhook setup explicitly
         # Only set source if not already provided (allows tests to override)
-        default_config = {
-          'api_key' => 'test_key',
-          'phone_number_id' => '123456789',
-          'business_account_id' => '123456789'
-        }
-        default_config['source'] = 'embedded_signup' unless channel_whatsapp.provider_config.key?('source')
-        channel_whatsapp.provider_config = channel_whatsapp.provider_config.merge(default_config)
+        channel_whatsapp.provider_config['api_key'] ||= 'test_key'
+        channel_whatsapp.provider_config['source'] = if channel_whatsapp.provider_config.key?('source')
+                                                       channel_whatsapp.provider_config['source']
+                                                     else
+                                                       'embedded_signup'
+                                                     end
       end
     end
 

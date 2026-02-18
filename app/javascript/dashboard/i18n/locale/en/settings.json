@@ -291,6 +291,213 @@
   "SETTINGS": {
     "INBOXES": {
       "NEW_INBOX": "Add Inbox"
+    },
+    "TEMPLATES": {
+      "HEADER": {
+        "TITLE": "Templates",
+        "DESCRIPTION": "Create and manage message templates to streamline your customer support responses."
+      },
+      "EMPTY_STATE": {
+        "TITLE": "No templates yet",
+        "DESCRIPTION": "Get started by creating your first template. Templates help you respond faster with consistent messaging."
+      },
+      "ACTIONS": {
+        "CREATE_TEMPLATE": "Create Template",
+        "NEW_TEMPLATE": "New Template",
+        "EDIT": "Edit",
+        "DELETE": "Delete",
+        "VIEW": "View Template",
+        "DELETE_TEMPLATE": "Delete Template",
+        "DUPLICATE_TEMPLATE": "Duplicate Template",
+        "CANCEL": "Cancel"
+      },
+      "CREATE_MODAL": {
+        "HEADER": {
+          "TITLE_CREATE": "Create WhatsApp Template",
+          "TITLE_EDIT": "Edit WhatsApp Template",
+          "SUBTITLE_CREATE": "Create a new message template for WhatsApp Business API",
+          "SUBTITLE_EDIT": "Update and resubmit this message template"
+        },
+        "BUTTONS": {
+          "SUBMIT_FOR_APPROVAL": "Submit for Approval",
+          "SAVE_CHANGES": "Save Changes"
+        },
+        "MESSAGES": {
+          "CREATE_SUCCESS": "Template submitted for approval! It will be available after Meta approval (24-48 hours).",
+          "UPDATE_SUCCESS": "Template updated and resubmitted for approval.",
+          "ERROR_GENERIC": "Failed to submit template. Please check your inputs and try again."
+        },
+        "FIELDS": {
+          "NAME": {
+            "LABEL": "Template Name",
+            "PLACEHOLDER": "e.g., welcome_message",
+            "HELP": "Allowed: lowercase letters, numbers, and underscores. Spaces are converted to underscores.",
+            "ERROR": "Template name is required"
+          },
+          "INBOX": {
+            "LABEL": "WhatsApp Channel",
+            "PLACEHOLDER": "Select a WhatsApp channel",
+            "OPTION_WITH_PHONE": "{name} ({phone})",
+            "ERROR": "Please select a WhatsApp channel"
+          },
+          "LANGUAGE": {
+            "LABEL": "Language",
+            "OPTIONS": {
+              "ENGLISH": "English",
+              "SPANISH": "Spanish",
+              "PORTUGUESE_BRAZIL": "Portuguese (Brazil)",
+              "FRENCH": "French",
+              "GERMAN": "German"
+            }
+          },
+          "CATEGORY": {
+            "LABEL": "Category",
+            "OPTIONS": {
+              "UTILITY": "Utility",
+              "MARKETING": "Marketing",
+              "AUTHENTICATION": "Authentication"
+            }
+          },
+          "HEADER": {
+            "LABEL": "Header (Optional)",
+            "OPTION_NONE": "No Header",
+            "OPTION_TEXT": "Text Header",
+            "PLACEHOLDER": "Header text (max 60 characters)"
+          },
+          "BODY": {
+            "LABEL": "Message Body * ({count}/{limit})",
+            "PLACEHOLDER": "Your message content here. Use {first}, {second} for variables.",
+            "VARIABLE_HINT": "Use {first}, {second}, etc. for dynamic variables",
+            "ERROR": "Message body is required"
+          },
+          "FOOTER": {
+            "LABEL": "Footer (Optional)",
+            "PLACEHOLDER": "Footer text (max 60 characters)"
+          },
+          "BUTTONS": {
+            "LABEL": "Quick Reply Buttons (Optional)",
+            "ADD": "Add Button",
+            "PLACEHOLDER": "Button {index} text (max 20 chars)"
+          }
+        }
+      },
+      "LIST": {
+        "404": "No templates found",
+        "GROUP_COUNT": "({count})",
+        "PAGINATION": "Showing {start} to {end} of {total} templates",
+        "TABLE_HEADER": {
+          "NAME": "Name",
+          "CATEGORY": "Category",
+          "CHANNEL": "Channel",
+          "STATUS": "Status",
+          "ACTIONS": "Actions"
+        }
+      },
+      "ADD": {
+        "TITLE": "Create a content template",
+        "DESC": "Create reusable message templates for faster customer communication.",
+        "CANCEL": "Cancel",
+        "CREATE": "Create",
+        "FORM": {
+          "NAME": {
+            "LABEL": "Template name",
+            "PLACEHOLDER": "Enter template name",
+            "ERROR": "Template name is required and must be at least 2 characters"
+          },
+          "LANGUAGE": {
+            "LABEL": "Language"
+          },
+          "CONTENT_TYPE": {
+            "LABEL": "Content type"
+          }
+        }
+      },
+      "LOADING": "Loading templates...",
+      "LEARN_MORE_ABOUT_TEMPLATES": "Learn more about templates",
+      "FILTERS": {
+        "CONTENT": "Content",
+        "CHANNEL": "Channel",
+        "LANGUAGE": "Language",
+        "OPTIONS": {
+          "GENERAL": "General",
+          "MARKETING": "Marketing",
+          "UTILITY": "Utility",
+          "AUTHENTICATION": "Authentication"
+        },
+        "CHANNEL_OPTIONS": {
+          "WHATSAPP": "WhatsApp",
+          "TELEGRAM": "Telegram",
+          "EMAIL": "Email",
+          "SMS": "SMS"
+        },
+        "LANGUAGE_OPTIONS": {
+          "PORTUGUESE": "Portuguese"
+        }
+      },
+      "API": {
+        "FETCH_ERROR": "Failed to load templates. Please try again.",
+        "SUCCESS_MESSAGE": "Template saved successfully",
+        "ERROR_MESSAGE": "Failed to save template. Please try again."
+      },
+      "DELETE": {
+        "SUCCESS": "Template deleted successfully",
+        "ERROR": "Failed to delete template. Please try again.",
+        "ERROR_INVALID": "Cannot delete this template",
+        "ERROR_NO_INBOX": "Cannot find the associated WhatsApp channel",
+        "CONFIRM": {
+          "TITLE": "Delete Template",
+          "MESSAGE": "Are you sure you want to delete this template?",
+          "YES": "Yes, Delete",
+          "NO": "Cancel"
+        }
+      },
+      "SYNC": {
+        "BUTTON": "Sync Templates",
+        "TOOLTIP": {
+          "NO_INBOXES": "No WhatsApp channels found",
+          "SELECT_INBOX": "Please select a WhatsApp channel below"
+        },
+        "STARTED": "Templates sync initiated. Please wait a few moments and refresh.",
+        "ERROR": "Failed to sync templates. Please try again."
+      },
+      "SEARCH": {
+        "PLACEHOLDER": "Search templates by name or content..."
+      },
+      "STATUS": {
+        "ALL": "All",
+        "APPROVED": "Approved",
+        "PENDING_REVIEW": "Pending review",
+        "REJECTED": "Rejected"
+      },
+      "WHATSAPP": {
+        "CHANNELS_TITLE": "WhatsApp Channels",
+        "TEMPLATES_COUNT": "{count} templates",
+        "NEVER_SYNCED": "Never synced",
+        "SELECT_CHANNEL_TITLE": "Select WhatsApp Channel",
+        "SELECT_CHANNEL_DESC": "Choose which WhatsApp channel you want to sync templates from:"
+      },
+      "VIEW_MODAL": {
+        "TITLE_PREFIX": "Template: {name}",
+        "HEADER_CONTENT": "WhatsApp Template Details",
+        "FIELDS": {
+          "TEMPLATE_NAME": "Template Name",
+          "STATUS": "Status",
+          "CATEGORY": "Category",
+          "LANGUAGE": "Language",
+          "CHANNEL": "Channel",
+          "CONTENT_TYPE": "Content Type"
+        },
+        "COMPONENTS_TITLE": "Template Components",
+        "BUTTONS_LABEL": "Buttons:",
+        "RAW_CONTENT_TITLE": "Template Content",
+        "ADDITIONAL_INFO_TITLE": "Additional Information",
+        "CLOSE": "Close"
+      },
+      "CATEGORIES": {
+        "UTILITY": "Utility",
+        "MARKETING": "Marketing",
+        "AUTHENTICATION": "Authentication"
+      }
     }
   },
   "SIDEBAR": {
@@ -304,6 +511,7 @@
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
     "UNATTENDED_CONVERSATIONS": "Unattended",
+    "CHATBOT_CONVERSATIONS": "ChatBot",
     "REPORTS": "Reports",
     "SETTINGS": "Settings",
     "CONTACTS": "Contacts",
@@ -326,9 +534,11 @@
     "INBOXES": "Inboxes",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
+    "TEMPLATES": "Templates",
     "INTEGRATIONS": "Integrations",
     "PROFILE_SETTINGS": "Profile Settings",
     "ACCOUNT_SETTINGS": "Account Settings",
+    "STORAGE_MANAGEMENT": "Storage Management",
     "APPLICATIONS": "Applications",
     "LABELS": "Labels",
     "CUSTOM_ATTRIBUTES": "Custom Attributes",
@@ -451,39 +661,15 @@
       "DESCRIPTION": "Manage usage and credits for Captain AI.",
       "BUTTON_TXT": "Buy more credits",
       "DOCUMENTS": "Documents",
-      "RESPONSES": "Credits",
-      "UPGRADE": "Captain is not available on the free plan, upgrade now to get access to assistants, copilot and more.",
-      "REFRESH_CREDITS": "Refresh"
+      "RESPONSES": "Responses",
+      "UPGRADE": "Captain is not available on the free plan, upgrade now to get access to assistants, copilot and more."
     },
     "CHAT_WITH_US": {
       "TITLE": "Need help?",
       "DESCRIPTION": "Do you face any issues in billing? We are here to help.",
       "BUTTON_TXT": "Chat with us"
     },
-    "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again.",
-    "TOPUP": {
-      "BUY_CREDITS": "Buy more credits",
-      "MODAL_TITLE": "Buy AI Credits",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
-      "CREDITS": "CREDITS",
-      "ONE_TIME": "one-time",
-      "POPULAR": "Most Popular",
-      "NOTE_TITLE": "Note:",
-      "NOTE_DESCRIPTION": "Credits are added immediately and expire in 6 months. An active subscription is required to use credits. Purchased credits are consumed after your monthly plan credits.",
-      "CANCEL": "Cancel",
-      "PURCHASE": "Purchase Credits",
-      "LOADING": "Loading options...",
-      "FETCH_ERROR": "Failed to load credit options. Please try again.",
-      "PURCHASE_ERROR": "Failed to process purchase. Please try again.",
-      "PURCHASE_SUCCESS": "Successfully added {credits} credits to your account",
-      "CONFIRM": {
-        "TITLE": "Confirm Purchase",
-        "DESCRIPTION": "You are about to purchase {credits} credits for {amount}.",
-        "INSTANT_DEDUCTION_NOTE": "Your saved card will be charged immediately upon confirmation.",
-        "GO_BACK": "Go Back",
-        "CONFIRM_PURCHASE": "Confirm Purchase"
-      }
-    }
+    "NO_BILLING_USER": "Your billing account is being configured. Please refresh the page and try again."
   },
   "SECURITY_SETTINGS": {
     "TITLE": "Security",
@@ -694,8 +880,7 @@
         "CREATE_BUTTON": "Create policy",
         "API": {
           "SUCCESS_MESSAGE": "Assignment policy created successfully",
-          "ERROR_MESSAGE": "Failed to create assignment policy",
-          "INBOX_LINKED": "Inbox has been linked to the policy"
+          "ERROR_MESSAGE": "Failed to create assignment policy"
         }
       },
       "EDIT": {
@@ -708,12 +893,6 @@
           "DESCRIPTION": "{inboxName} inbox is already linked to another policy. Are you sure you want to link it to this policy? It will be unlinked from the other policy.",
           "CONFIRM_BUTTON_LABEL": "Continue",
           "CANCEL_BUTTON_LABEL": "Cancel"
-        },
-        "INBOX_LINK_PROMPT": {
-          "TITLE": "Link inbox to policy",
-          "DESCRIPTION": "Would you like to link this inbox to the assignment policy?",
-          "LINK_BUTTON": "Link inbox",
-          "CANCEL_BUTTON": "Skip"
         },
         "API": {
           "SUCCESS_MESSAGE": "Assignment policy updated successfully",
@@ -753,9 +932,7 @@
           },
           "BALANCED": {
             "LABEL": "Balanced",
-            "DESCRIPTION": "Assign conversations based on available capacity.",
-            "PREMIUM_MESSAGE": "Upgrade to access balanced assignment and agent capacity management.",
-            "PREMIUM_BADGE": "Premium"
+            "DESCRIPTION": "Assign conversations based on available capacity."
           }
         },
         "ASSIGNMENT_PRIORITY": {
@@ -840,20 +1017,6 @@
           "REMOVE": {
             "SUCCESS_MESSAGE": "Agent removed from policy successfully",
             "ERROR_MESSAGE": "Failed to remove agent from policy"
-          }
-        },
-        "INBOX_LIMIT_API": {
-          "ADD": {
-            "SUCCESS_MESSAGE": "Inbox limit added successfully",
-            "ERROR_MESSAGE": "Failed to add inbox limit"
-          },
-          "UPDATE": {
-            "SUCCESS_MESSAGE": "Inbox limit updated successfully",
-            "ERROR_MESSAGE": "Failed to update inbox limit"
-          },
-          "DELETE": {
-            "SUCCESS_MESSAGE": "Inbox limit deleted successfully",
-            "ERROR_MESSAGE": "Failed to delete inbox limit"
           }
         }
       },

@@ -20,6 +20,12 @@
     "CALL": "Llamar",
     "CALL_INITIATED": "Llamando al contacto…",
     "CALL_FAILED": "No se puede iniciar la llamada. Por favor, inténtelo de nuevo.",
+    "WHATSAPP_CALL": "Llamada de WhatsApp",
+    "WHATSAPP_CALL_INITIATED": "Iniciando llamada de WhatsApp…",
+    "WHATSAPP_CALL_FAILED": "No se puede iniciar la llamada de WhatsApp. Por favor, inténtelo de nuevo.",
+    "WHATSAPP_INBOX_PICKER": {
+      "TITLE": "Seleccionar un buzón de WhatsApp"
+    },
     "VOICE_INBOX_PICKER": {
       "TITLE": "Seleccionar un buzón de entrada"
     },
@@ -44,6 +50,7 @@
       }
     },
     "MERGE_CONTACT": "Combinar contacto",
+    "MERGE_MESSAGES": "Combinar mensajes",
     "CONTACT_ACTIONS": "Acciones de contacto",
     "MUTE_CONTACT": "Bloquear contacto",
     "UNMUTE_CONTACT": "Desbloquear contacto",
@@ -285,6 +292,29 @@
     },
     "DROPDOWN_ITEM": {
       "ID": "(ID: {identifier})"
+    }
+  },
+  "MERGE_MESSAGES": {
+    "TITLE": "Combinar mensajes",
+    "DESC": "Busca y selecciona una conversación para fusionar los mensajes. Esto moverá todos los mensajes de la conversación actual a la conversación seleccionada.",
+    "PLACEHOLDER": "Buscar conversaciones por contacto o asunto",
+    "SOURCE_LABEL": "Conversación origen",
+    "TARGET_LABEL": "Conversación destino",
+    "SUMMARY_TITLE": "Resumen",
+    "SOURCE": "Origen",
+    "WILL_BE_DELETED": "se eliminará",
+    "TARGET": "Destino",
+    "WILL_BE_KEPT": "se mantiene",
+    "SUMMARY_NOTE": "Se moverán los mensajes desde la conversación de origen hacia la conversación destino.",
+    "SUBMIT": "Combinar",
+    "CANCEL": "Cancelar",
+    "SUCCESS": "Mensajes combinados exitosamente",
+    "ERROR": "No se pudo combinar los mensajes. Inténtalo de nuevo.",
+    "CONFIRM": {
+      "TITLE": "Confirmar fusión",
+      "MESSAGE": "¿Está seguro de que desea fusionar todos los mensajes de la conversación #{sourceId} a la conversación #{targetId}? Esta acción no se puede deshacer.",
+      "YES": "Sí, fusionar",
+      "NO": "No, cancelar"
     }
   },
   "CONTACTS_LAYOUT": {
@@ -648,7 +678,14 @@
       },
       "ACTION_BUTTONS": {
         "DISCARD": "Descartar",
-        "SEND": "Enviar ({keyCode})"
+        "SEND": "Enviar ({keyCode})",
+        "CREATE_ONLY": "Crear conversación"
+      },
+      "WHATSAPP_WARNING": {
+        "TITLE": "Se requiere plantilla de WhatsApp",
+        "MESSAGE": "Crear una conversación sin mensaje en WhatsApp requerirá que envíes una plantilla aprobada como primer mensaje. La conversación estará bloqueada para mensajes regulares hasta que envíes una plantilla.",
+        "CANCEL": "Cancelar",
+        "CONFIRM": "Crear de todos modos"
       }
     }
   }

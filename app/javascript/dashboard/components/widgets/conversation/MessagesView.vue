@@ -84,6 +84,7 @@ export default {
       isProgrammaticScroll: false,
       messageSentSinceOpened: false,
       labelSuggestions: [],
+      lastMarkAsReadTime: 0, // Timestamp for throttling
     };
   },
 
@@ -255,10 +256,20 @@ export default {
       this.fetchSuggestions();
       this.messageSentSinceOpened = false;
     },
+    'currentChat.dataFetched'(val) {
+      if (val === true) {
+        this.$nextTick(() => {
+          const top = this.conversationPanel?.scrollTop ?? 0;
+          this.fetchPreviousMessages(top);
+        });
+      }
+    },
   },
 
   created() {
     emitter.on(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
+    // when a new message comes in, we refetch the label suggestions
+    emitter.on(BUS_EVENTS.FETCH_LABEL_SUGGESTIONS, this.fetchSuggestions);
     // when a message is sent we set the flag to true this hides the label suggestions,
     // until the chat is changed and the flag is reset in the watch for currentChat
     emitter.on(BUS_EVENTS.MESSAGE_SENT, () => {
@@ -270,14 +281,21 @@ export default {
     this.addScrollListener();
     this.fetchAllAttachmentsFromCurrentChat();
     this.fetchSuggestions();
+    window.addEventListener('resize', this.onResize, { passive: true });
   },
 
   unmounted() {
     this.removeBusListeners();
     this.removeScrollListener();
+    window.removeEventListener('resize', this.onResize);
   },
 
   methods: {
+    onResize() {
+      if (!this.conversationPanel) return;
+      const top = this.conversationPanel.scrollTop;
+      this.fetchPreviousMessages(top);
+    },
     async fetchSuggestions() {
       // start empty, this ensures that the label suggestions are not shown
       this.labelSuggestions = [];
@@ -285,6 +303,13 @@ export default {
       if (this.isLabelSuggestionDismissed()) {
         return;
       }
+
+      if (!this.isEnterprise) {
+        return;
+      }
+
+      // method available in mixin, need to ensure that integrations are present
+      await this.fetchIntegrationsIfRequired();
 
       // Early exit if conversation already has labels - no need to suggest more
       const existingLabels = this.currentChat?.labels || [];
@@ -341,12 +366,28 @@ export default {
     addScrollListener() {
       this.conversationPanel = this.$el.querySelector('.conversation-panel');
       this.setScrollParams();
-      this.conversationPanel.addEventListener('scroll', this.handleScroll);
+      this.conversationPanel.addEventListener('scroll', this.handleScroll, {
+        passive: true,
+        capture: true,
+      });
       this.$nextTick(() => this.scrollToBottom());
       this.isLoadingPrevious = false;
+      if (!this.conversationPanel) {
+        // Fallback: listen to window scroll to detect user scrolls affecting layout
+        window.addEventListener('scroll', this.handleWindowScroll, {
+          passive: true,
+        });
+      }
     },
     removeScrollListener() {
-      this.conversationPanel.removeEventListener('scroll', this.handleScroll);
+      this.conversationPanel.removeEventListener('scroll', this.handleScroll, {
+        capture: true,
+      });
+      window.removeEventListener('scroll', this.handleWindowScroll);
+    },
+    handleWindowScroll() {
+      const top = this.conversationPanel?.scrollTop ?? window.scrollY ?? 0;
+      this.fetchPreviousMessages(top);
     },
     scrollToBottom() {
       this.isProgrammaticScroll = true;
@@ -388,10 +429,11 @@ export default {
 
     async fetchPreviousMessages(scrollTop = 0) {
       this.setScrollParams();
+      const messagesCount = this.currentChat?.messages?.length || 0;
+      const hasInitialData =
+        this.currentChat?.dataFetched === true || messagesCount > 0;
       const shouldLoadMoreMessages =
-        this.currentChat.dataFetched === true &&
-        !this.listLoadingStatus &&
-        !this.isLoadingPrevious;
+        hasInitialData && !this.listLoadingStatus && !this.isLoadingPrevious;
 
       if (
         scrollTop < 100 &&
@@ -400,9 +442,10 @@ export default {
       ) {
         this.isLoadingPrevious = true;
         try {
+          const beforeId = this.currentChat?.messages?.[0]?.id;
           await this.$store.dispatch('fetchPreviousMessages', {
             conversationId: this.currentChat.id,
-            before: this.currentChat.messages[0].id,
+            before: beforeId,
           });
           const heightDifference =
             this.conversationPanel.scrollHeight - this.heightBeforeLoad;
@@ -430,6 +473,12 @@ export default {
     },
 
     makeMessagesRead() {
+      // Simple throttling: max once per 5 seconds (5000ms)
+      const now = Date.now();
+      if (now - this.lastMarkAsReadTime < 5000) {
+        return; // Skip if called within last 5 seconds
+      }
+      this.lastMarkAsReadTime = now;
       this.$store.dispatch('markMessagesRead', { id: this.currentChat.id });
     },
     async handleMessageRetry(message) {

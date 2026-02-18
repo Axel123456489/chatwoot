@@ -20,8 +20,19 @@ RSpec.describe Captain::Tools::SearchDocumentationService do
   end
 
   describe '#parameters' do
-    it 'defines query parameter' do
-      expect(service.parameters.keys).to contain_exactly(:query)
+    it 'returns the required parameters schema' do
+      expected_schema = {
+        type: 'object',
+        properties: {
+          search_query: {
+            type: 'string',
+            description: 'The search query to look up in the documentation.'
+          }
+        },
+        required: ['search_query']
+      }
+
+      expect(service.parameters).to eq(expected_schema)
     end
   end
 
@@ -45,7 +56,7 @@ RSpec.describe Captain::Tools::SearchDocumentationService do
       end
 
       it 'returns formatted responses for the search query' do
-        result = service.execute(query: question)
+        result = service.execute({ 'search_query' => question })
 
         expect(result).to include(question)
         expect(result).to include(answer)
@@ -59,7 +70,7 @@ RSpec.describe Captain::Tools::SearchDocumentationService do
       end
 
       it 'returns an empty string' do
-        expect(service.execute(query: question)).to eq('No FAQs found for the given query')
+        expect(service.execute({ 'search_query' => question })).to eq('No FAQs found for the given query')
       end
     end
   end

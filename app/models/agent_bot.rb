@@ -62,4 +62,39 @@ class AgentBot < ApplicationRecord
   def system_bot?
     account.nil?
   end
+
+  before_validation :normalize_bot_config_flags
+
+  private
+
+  def normalize_bot_config_flags
+    return unless bot_config.is_a?(Hash)
+
+    cfg = bot_config.dup
+
+    boolean_keys = %w[
+      n8n_native
+      n8n_start_on_message
+      n8n_start_on_conversation_created
+      n8n_start_on_manual_pending
+      n8n_restart_on_reopen
+      n8n_start_on_reopen
+    ]
+    boolean_keys.each do |key|
+      next unless cfg.key?(key)
+
+      cfg[key] = ActiveRecord::Type::Boolean.new.cast(cfg[key])
+    end
+
+    cfg['n8n_triggers_version'] = normalize_trigger_version(cfg['n8n_triggers_version'])
+
+    cfg.delete('n8n_allowed_statuses')
+
+    self.bot_config = cfg
+  end
+
+  def normalize_trigger_version(raw_version)
+    version = raw_version.to_i
+    version.positive? ? version : 2
+  end
 end

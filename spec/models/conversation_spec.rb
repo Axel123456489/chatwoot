@@ -230,6 +230,26 @@ RSpec.describe Conversation do
         .with(conversation2, { account_id: conversation2.account_id, inbox_id: conversation2.inbox_id, message_type: :activity,
                                content: system_resolved_message })
     end
+
+    it 'adds a message when a pending conversation assigned to a bot is opened by an agent' do
+      bot = create(:agent_bot, account: account, bot_config: { 'n8n_native' => true })
+      Current.user = old_assignee
+      conversation.update!(status: :pending, assignee: nil, assignee_agent_bot: bot)
+
+      expect { conversation.open! }
+        .to have_enqueued_job(Conversations::ActivityMessageJob)
+        .with(
+          conversation,
+          {
+            account_id: conversation.account_id,
+            inbox_id: conversation.inbox_id,
+            message_type: :activity,
+            content: "Conversation was reopened by #{old_assignee.name}"
+          }
+        )
+
+      expect(AgentBots::ClearAssignmentJob).to have_been_enqueued.with(conversation.id, bot.id)
+    end
   end
 
   describe '#update_labels' do

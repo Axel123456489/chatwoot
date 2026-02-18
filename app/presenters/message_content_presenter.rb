@@ -1,18 +1,11 @@
 class MessageContentPresenter < SimpleDelegator
   def outgoing_content
-    content_to_send = if should_append_survey_link?
-                        survey_link = survey_url(conversation.uuid)
-                        custom_message = inbox.csat_config&.dig('message')
-                        custom_message.present? ? "#{custom_message} #{survey_link}" : I18n.t('conversations.survey.response', link: survey_link)
-                      else
-                        content
-                      end
+    return content unless should_append_survey_link?
 
-    Messages::MarkdownRendererService.new(
-      content_to_send,
-      conversation.inbox.channel_type,
-      conversation.inbox.channel
-    ).render
+    survey_link = survey_url(conversation.uuid)
+    custom_message = inbox.csat_config&.dig('message')
+
+    custom_message.present? ? "#{custom_message} #{survey_link}" : I18n.t('conversations.survey.response', link: survey_link)
   end
 
   private

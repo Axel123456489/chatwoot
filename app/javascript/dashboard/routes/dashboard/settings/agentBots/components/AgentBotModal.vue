@@ -13,6 +13,7 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 
 const props = defineProps({
@@ -43,6 +44,11 @@ const formState = reactive({
   botUrl: '',
   botAvatar: null,
   botAvatarUrl: '',
+  // n8n config
+  n8nNative: false,
+  n8nStartOnMessage: true,
+  n8nStartOnManualPending: true,
+  n8nStartOnReopen: true,
 });
 
 const [showAccessToken, toggleAccessToken] = useToggle();
@@ -121,6 +127,10 @@ const resetForm = () => {
     botUrl: '',
     botAvatar: null,
     botAvatarUrl: '',
+    n8nNative: false,
+    n8nStartOnMessage: true,
+    n8nStartOnManualPending: true,
+    n8nStartOnReopen: true,
   });
   v$.value.$reset();
 };
@@ -160,6 +170,12 @@ const handleSubmit = async () => {
     outgoing_url: formState.botUrl,
     bot_type: 'webhook',
     avatar: formState.botAvatar,
+    bot_config: {
+      n8n_native: formState.n8nNative,
+      n8n_start_on_message: formState.n8nStartOnMessage,
+      n8n_start_on_manual_pending: formState.n8nStartOnManualPending,
+      n8n_start_on_reopen: formState.n8nStartOnReopen,
+    },
   };
 
   const isCreate = props.type === MODAL_TYPES.CREATE;
@@ -217,7 +233,22 @@ const initializeForm = () => {
     formState.botDescription = description || '';
     formState.botUrl = botUrl || botConfig?.webhook_url || '';
     formState.botAvatarUrl = thumbnail || '';
-
+    // Initialize n8n config
+    // Preserve actual boolean; accept string 'true'/'false' from server just in case
+    const castBool = v => v === true || v === 'true' || v === 1 || v === '1';
+    const isExplicitFalse = v =>
+      v === false || v === 'false' || v === 0 || v === '0';
+    formState.n8nNative = castBool(botConfig?.n8n_native);
+    formState.n8nStartOnMessage = !isExplicitFalse(
+      botConfig?.n8n_start_on_message
+    );
+    formState.n8nStartOnManualPending = !isExplicitFalse(
+      botConfig?.n8n_start_on_manual_pending
+    );
+    // Support both new (n8n_start_on_reopen) and old (n8n_restart_on_reopen) config keys
+    const reopenFlag =
+      botConfig?.n8n_start_on_reopen ?? botConfig?.n8n_restart_on_reopen;
+    formState.n8nStartOnReopen = !isExplicitFalse(reopenFlag);
     if (botAccessToken && props.type === MODAL_TYPES.EDIT) {
       accessToken.value = botAccessToken;
     }
@@ -316,6 +347,62 @@ defineExpose({ dialogRef });
           :message-type="botUrlError ? 'error' : 'info'"
           @blur="v$.botUrl.$touch()"
         />
+      </div>
+
+      <!-- n8n configuration -->
+      <div
+        v-if="!showAccessToken"
+        class="flex flex-col gap-3 border rounded-lg border-n-weak p-4"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <span class="text-sm font-medium text-n-slate-12">{{
+              $t('AGENT_BOTS.FORM.N8N.TITLE')
+            }}</span>
+            <span class="text-xs text-n-slate-11">{{
+              $t('AGENT_BOTS.FORM.N8N.ALLOWED_STATUSES_HELP')
+            }}</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <label class="text-sm text-n-slate-12">{{
+            $t('AGENT_BOTS.FORM.N8N.MODE_LABEL')
+          }}</label>
+          <ToggleSwitch v-model="formState.n8nNative" />
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <label class="text-sm text-n-slate-12">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_MESSAGE')
+            }}</label>
+            <span class="text-xs text-n-slate-11">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_MESSAGE_HELP')
+            }}</span>
+          </div>
+          <ToggleSwitch v-model="formState.n8nStartOnMessage" />
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <label class="text-sm text-n-slate-12">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_MANUAL_PENDING')
+            }}</label>
+            <span class="text-xs text-n-slate-11">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_MANUAL_PENDING_HELP')
+            }}</span>
+          </div>
+          <ToggleSwitch v-model="formState.n8nStartOnManualPending" />
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <label class="text-sm text-n-slate-12">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_REOPEN')
+            }}</label>
+            <span class="text-xs text-n-slate-11">{{
+              $t('AGENT_BOTS.FORM.N8N.START_ON_REOPEN_HELP')
+            }}</span>
+          </div>
+          <ToggleSwitch v-model="formState.n8nStartOnReopen" />
+        </div>
       </div>
 
       <div v-if="showAccessTokenInput" class="flex flex-col gap-1">

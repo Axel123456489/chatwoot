@@ -208,6 +208,43 @@ shopify:
   hook_type: account
   allow_multiple_hooks: false
 
+waha:
+  id: waha
+  logo: waha.png
+  i18n_key: waha
+  action: /waha
+  hook_type: account
+  feature_flag: waha_integration
+  allow_multiple_hooks: false
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'base_url': { 'type': 'string' },
+          'api_key': { 'type': 'string' },
+        },
+      'required': ['base_url', 'api_key'],
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'WAHA Server URL',
+        'type': 'text',
+        'name': 'base_url',
+        'validation': 'required',
+        'placeholder': 'https://waha.example.com',
+      },
+      {
+        'label': 'API Key',
+        'type': 'text',
+        'name': 'api_key',
+        'validation': 'required',
+      },
+    ]
+  visible_properties: ['base_url']
+
 leadsquared:
   id: leadsquared
   feature_flag: crm_integration

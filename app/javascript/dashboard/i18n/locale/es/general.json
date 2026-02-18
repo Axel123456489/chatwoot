@@ -6,7 +6,8 @@
       "EMPTY_STATE": "No se encontraron resultados"
     },
     "CLOSE": "Cerrar",
+    "REMOVE": "Eliminar",
     "BETA": "Beta",
-    "BETA_DESCRIPTION": "This feature is in beta and may change as we improve it."
+    "BETA_DESCRIPTION": "Esta función está en versión beta y puede cambiar mientras la mejoramos."
   }
 }

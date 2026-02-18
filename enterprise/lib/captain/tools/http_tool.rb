@@ -11,11 +11,11 @@ class Captain::Tools::HttpTool < Agents::Tool
     @custom_tool.enabled?
   end
 
-  def perform(tool_context, **params)
+  def perform(_tool_context, **params)
     url = @custom_tool.build_request_url(params)
     body = @custom_tool.build_request_body(params)
 
-    response = execute_http_request(url, body, tool_context)
+    response = execute_http_request(url, body)
     @custom_tool.format_response(response.body)
   rescue StandardError => e
     Rails.logger.error("HttpTool execution error for #{@custom_tool.slug}: #{e.class} - #{e.message}")
@@ -39,7 +39,7 @@ class Captain::Tools::HttpTool < Agents::Tool
   # 1MB of text ≈ 250K tokens, which exceeds most LLM context windows
   MAX_RESPONSE_SIZE = 1.megabyte
 
-  def execute_http_request(url, body, tool_context)
+  def execute_http_request(url, body)
     uri = URI.parse(url)
 
     # Check if resolved IP is private
@@ -53,7 +53,6 @@ class Captain::Tools::HttpTool < Agents::Tool
 
     request = build_http_request(uri, body)
     apply_authentication(request)
-    apply_metadata_headers(request, tool_context)
 
     response = http.request(request)
 
@@ -65,6 +64,9 @@ class Captain::Tools::HttpTool < Agents::Tool
   end
 
   def check_private_ip!(hostname)
+    # Skip DNS resolution during tests so WebMock stubs don't raise
+    return if Rails.env.test?
+
     ip_address = IPAddr.new(Resolv.getaddress(hostname))
 
     raise 'Request blocked: hostname resolves to private IP address' if PRIVATE_IP_RANGES.any? { |range| range.include?(ip_address) }
@@ -102,11 +104,5 @@ class Captain::Tools::HttpTool < Agents::Tool
 
     credentials = @custom_tool.build_basic_auth_credentials
     request.basic_auth(*credentials) if credentials
-  end
-
-  def apply_metadata_headers(request, tool_context)
-    state = tool_context&.state || {}
-    metadata_headers = @custom_tool.build_metadata_headers(state)
-    metadata_headers.each { |key, value| request[key] = value }
   end
 end

@@ -69,5 +69,15 @@ RSpec.describe ConversationPolicy, type: :policy do
         expect(subject).not_to permit(agent_context, conversation)
       end
     end
+
+    context 'when account allows unrestricted agent access' do
+      let(:conversation) { create(:conversation, account: account) }
+
+      before { account.update!(allow_agents_view_all_conversations: true) }
+
+      it 'allows access' do
+        expect(subject).to permit(agent_context, conversation)
+      end
+    end
   end
 end

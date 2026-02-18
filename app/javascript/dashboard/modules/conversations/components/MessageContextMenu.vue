@@ -4,6 +4,7 @@ import { mapGetters } from 'vuex';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AddCannedModal from 'dashboard/routes/dashboard/settings/canned/AddCanned.vue';
+import ReactionPicker from 'dashboard/components-next/message/ReactionPicker.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { conversationUrl, frontendURL } from '../../../helper/URLHelper';
@@ -14,6 +15,7 @@ import {
 import MenuItem from '../../../components/widgets/conversation/contextMenu/menuItem.vue';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import MessageAPI from 'dashboard/api/inbox/message';
 
 export default {
   components: {
@@ -21,6 +23,7 @@ export default {
     MenuItem,
     ContextMenu,
     NextButton,
+    ReactionPicker,
   },
   props: {
     message: {
@@ -56,6 +59,8 @@ export default {
     return {
       isCannedResponseModalOpen: false,
       showDeleteModal: false,
+      showReactionPicker: false,
+      reactionPickerPosition: { x: 0, y: 0 },
     };
   },
   computed: {
@@ -152,6 +157,37 @@ export default {
     closeDeleteModal() {
       this.showDeleteModal = false;
     },
+    toggleReactionPicker() {
+      // Save position before closing context menu
+      this.reactionPickerPosition = {
+        x: this.contextMenuPosition.x,
+        y: this.contextMenuPosition.y,
+      };
+      // Close context menu and show reaction picker
+      this.handleClose();
+      this.showReactionPicker = true;
+    },
+    closeReactionPicker() {
+      this.showReactionPicker = false;
+    },
+    async handleReaction(emoji) {
+      try {
+        const { data } = await MessageAPI.addReaction({
+          conversationId: this.conversationId,
+          messageId: this.messageId,
+          emoji,
+        });
+        // Only update the content_attributes of the existing message
+        this.$store.commit('updateMessageMeta', {
+          conversationId: this.conversationId,
+          messageId: this.messageId,
+          contentAttributes: data.content_attributes,
+        });
+        this.showReactionPicker = false;
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.CONTEXT_MENU.REACTION_ERROR'));
+      }
+    },
   },
 };
 </script>
@@ -181,6 +217,23 @@ export default {
       :confirm-text="$t('CONVERSATION.CONTEXT_MENU.DELETE_CONFIRMATION.DELETE')"
       :reject-text="$t('CONVERSATION.CONTEXT_MENU.DELETE_CONFIRMATION.CANCEL')"
     />
+    <!-- Reaction Picker -->
+    <Teleport to="body">
+      <div
+        v-if="showReactionPicker"
+        class="fixed inset-0 z-[9998]"
+        @click="closeReactionPicker"
+      >
+        <ReactionPicker
+          class="fixed z-[9999]"
+          :style="{
+            top: `${reactionPickerPosition.y}px`,
+            left: `${reactionPickerPosition.x}px`,
+          }"
+          @select="handleReaction"
+        />
+      </div>
+    </Teleport>
     <NextButton
       v-if="!hideButton"
       ghost
@@ -197,6 +250,15 @@ export default {
       @close="handleClose"
     >
       <div class="menu-container">
+        <MenuItem
+          v-if="enabledOptions['react']"
+          :option="{
+            icon: 'emoji',
+            label: $t('CONVERSATION.CONTEXT_MENU.REACT'),
+          }"
+          variant="icon"
+          @click.stop="toggleReactionPicker"
+        />
         <MenuItem
           v-if="enabledOptions['replyTo']"
           :option="{

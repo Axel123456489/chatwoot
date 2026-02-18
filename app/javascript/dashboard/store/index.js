@@ -14,6 +14,7 @@ import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
 import cannedResponse from './modules/cannedResponse';
 import categories from './modules/helpCenterCategories';
+import companies from './modules/companies';
 import contactConversations from './modules/contactConversations';
 import contactLabels from './modules/contactLabels';
 import contactNotes from './modules/contactNotes';
@@ -48,6 +49,7 @@ import teamMembers from './modules/teamMembers';
 import teams from './modules/teams';
 import userNotificationSettings from './modules/userNotificationSettings';
 import webhooks from './modules/webhooks';
+import whatsappCalls from './modules/whatsappCalls';
 import captainAssistants from './captain/assistant';
 import captainDocuments from './captain/document';
 import captainResponses from './captain/response';
@@ -77,6 +79,7 @@ export default createStore({
     campaigns,
     cannedResponse,
     categories,
+    companies,
     contactConversations,
     contactLabels,
     contactNotes,
@@ -111,6 +114,7 @@ export default createStore({
     teams,
     userNotificationSettings,
     webhooks,
+    whatsappCalls,
     captainAssistants,
     captainDocuments,
     captainResponses,

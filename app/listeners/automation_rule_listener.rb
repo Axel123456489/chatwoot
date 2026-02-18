@@ -26,10 +26,12 @@ class AutomationRuleListener < BaseListener
     return unless rule_present?('message_created', account)
 
     rules = current_account_rules('message_created', account)
+    Rails.logger.info("[Automation][Listener] message_created rules=#{rules.pluck(:id)} conversation_id=#{message.conversation_id}")
 
     rules.each do |rule|
       conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, message.conversation,
                                                                         { message: message, changed_attributes: changed_attributes }).perform
+      Rails.logger.info("[Automation][Listener] rule_id=#{rule.id} conditions_match=#{conditions_match}")
       ::AutomationRules::ActionService.new(rule, account, message.conversation).perform if conditions_match.present?
     end
   end
@@ -49,9 +51,11 @@ class AutomationRuleListener < BaseListener
     return unless rule_present?(event_name, account)
 
     rules = current_account_rules(event_name, account)
+    Rails.logger.info("[Automation][Listener] #{event_name} rules=#{rules.pluck(:id)} conversation_id=#{conversation.id}")
 
     rules.each do |rule|
       conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, { changed_attributes: changed_attributes }).perform
+      Rails.logger.info("[Automation][Listener] rule_id=#{rule.id} conditions_match=#{conditions_match}")
       AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
     end
   end

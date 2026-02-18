@@ -27,7 +27,7 @@
   },
   "COMPANIES_LAYOUT": {
     "PAGINATION_FOOTER": {
-      "SHOWING": "Showing {startItem} – {endItem} of {totalItems} company | Showing {startItem} – {endItem} of {totalItems} companies"
+      "SHOWING": "Showing {startItem} - {endItem} of {totalItems} companies"
     }
   }
 }

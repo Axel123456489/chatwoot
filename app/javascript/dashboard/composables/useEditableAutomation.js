@@ -40,6 +40,55 @@ export function useEditableAutomation() {
           condition.attribute_key
         );
       }
+
+      // Special handling for attribute_changed operator
+      if (condition.filter_operator === 'attribute_changed') {
+        const values = condition.values || {};
+
+        // For date type, UI expects string values (not arrays)
+        if (inputType === 'date') {
+          const from = Array.isArray(values.from)
+            ? values.from[0] || ''
+            : values.from || '';
+          const to = Array.isArray(values.to)
+            ? values.to[0] || ''
+            : values.to || '';
+          return {
+            ...condition,
+            query_operator: condition.query_operator || 'and',
+            values: { from, to },
+          };
+        }
+
+        // For dropdowns, UI expects arrays of option objects for from/to
+        if (inputType === 'multi_select' || inputType === 'search_select') {
+          const options = [
+            ...getConditionDropdownValues(condition.attribute_key),
+          ];
+          const mapIdsToOptions = arr => {
+            const ids = Array.isArray(arr)
+              ? arr.map(v => (v === null ? '__NONE__' : v))
+              : [];
+            return options.filter(opt => ids.includes(opt.id));
+          };
+          return {
+            ...condition,
+            query_operator: condition.query_operator || 'and',
+            values: {
+              from: mapIdsToOptions(values.from),
+              to: mapIdsToOptions(values.to),
+            },
+          };
+        }
+
+        // Fallback for any other input types
+        return {
+          ...condition,
+          query_operator: condition.query_operator || 'and',
+          values,
+        };
+      }
+
       if (inputType === 'plain_text' || inputType === 'date') {
         return { ...condition, values: condition.values[0] };
       }

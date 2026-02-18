@@ -8,7 +8,7 @@ import DropdownSection from 'next/dropdown-menu/base/DropdownSection.vue';
 import DropdownBody from 'next/dropdown-menu/base/DropdownBody.vue';
 import DropdownItem from 'next/dropdown-menu/base/DropdownItem.vue';
 
-const { options, maxChips, dropdownMaxHeight } = defineProps({
+const { options, maxChips } = defineProps({
   options: {
     type: Array,
     required: true,
@@ -16,10 +16,6 @@ const { options, maxChips, dropdownMaxHeight } = defineProps({
   maxChips: {
     type: Number,
     default: 3,
-  },
-  dropdownMaxHeight: {
-    type: String,
-    default: 'max-h-80',
   },
 });
 
@@ -95,6 +91,7 @@ const toggleOption = option => {
     <template #trigger="{ toggle }">
       <button
         v-if="hasItems"
+        type="button"
         class="bg-n-alpha-2 py-2 rounded-lg h-8 flex items-center px-0"
         @click="toggle"
       >
@@ -119,7 +116,7 @@ const toggleOption = option => {
           <Icon icon="i-lucide-plus" />
         </div>
       </button>
-      <Button v-else sm slate faded @click="toggle">
+      <Button v-else sm slate faded type="button" @click="toggle">
         <template #icon>
           <Icon icon="i-lucide-plus" class="text-n-slate-11" />
         </template>
@@ -127,7 +124,7 @@ const toggleOption = option => {
       </Button>
     </template>
     <DropdownBody class="top-0 min-w-48 z-50" strong>
-      <DropdownSection :height="dropdownMaxHeight">
+      <DropdownSection class="[&>ul]:max-h-80">
         <DropdownItem
           v-for="option in options"
           :key="option.id"

@@ -11,6 +11,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  wahaEnabled: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['channelItemClick']);
@@ -54,6 +58,14 @@ const isActive = computed(() => {
 
   if (key === 'voice') {
     return props.enabledFeatures.channel_voice;
+  }
+
+  if (key === 'waha') {
+    // Allow if API channel feature is true or unset, and integration readiness flag is true
+    const apiFeature = props.enabledFeatures.channel_api;
+    const apiAllowed =
+      apiFeature === undefined || apiFeature === null || apiFeature === true;
+    return apiAllowed && props.wahaEnabled === true;
   }
 
   return [

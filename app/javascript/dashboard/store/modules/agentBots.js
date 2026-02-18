@@ -60,6 +60,43 @@ export const actions = {
       formData.append('bot_type', botData.bot_type || 'webhook');
       formData.append('outgoing_url', botData.outgoing_url);
 
+      // Always send n8n flags (avoid stale values on create)
+      if (botData.bot_config) {
+        formData.append(
+          'bot_config[n8n_native]',
+          botData.bot_config.n8n_native ? 'true' : 'false'
+        );
+        formData.append(
+          'bot_config[n8n_start_on_message]',
+          botData.bot_config.n8n_start_on_message !== false ? 'true' : 'false'
+        );
+        formData.append(
+          'bot_config[n8n_start_on_manual_pending]',
+          botData.bot_config.n8n_start_on_manual_pending !== false
+            ? 'true'
+            : 'false'
+        );
+        if (
+          Object.prototype.hasOwnProperty.call(
+            botData.bot_config,
+            'n8n_start_on_reopen'
+          )
+        ) {
+          formData.append(
+            'bot_config[n8n_start_on_reopen]',
+            botData.bot_config.n8n_start_on_reopen !== false ? 'true' : 'false'
+          );
+        } else {
+          // Backward compatibility for older configs using n8n_restart_on_reopen
+          formData.append(
+            'bot_config[n8n_restart_on_reopen]',
+            botData.bot_config.n8n_restart_on_reopen !== false
+              ? 'true'
+              : 'false'
+          );
+        }
+      }
+
       // Add avatar file if available
       if (botData.avatar) {
         formData.append('avatar', botData.avatar);
@@ -85,6 +122,34 @@ export const actions = {
       formData.append('description', data.description);
       formData.append('bot_type', data.bot_type || 'webhook');
       formData.append('outgoing_url', data.outgoing_url);
+
+      // Append bot_config keys if provided
+      if (data.bot_config) {
+        const cfg = data.bot_config;
+        formData.append(
+          'bot_config[n8n_native]',
+          cfg.n8n_native ? 'true' : 'false'
+        );
+        formData.append(
+          'bot_config[n8n_start_on_message]',
+          cfg.n8n_start_on_message !== false ? 'true' : 'false'
+        );
+        formData.append(
+          'bot_config[n8n_start_on_manual_pending]',
+          cfg.n8n_start_on_manual_pending !== false ? 'true' : 'false'
+        );
+        if (Object.prototype.hasOwnProperty.call(cfg, 'n8n_start_on_reopen')) {
+          formData.append(
+            'bot_config[n8n_start_on_reopen]',
+            cfg.n8n_start_on_reopen !== false ? 'true' : 'false'
+          );
+        } else {
+          formData.append(
+            'bot_config[n8n_restart_on_reopen]',
+            cfg.n8n_restart_on_reopen !== false ? 'true' : 'false'
+          );
+        }
+      }
 
       if (data.avatar) {
         formData.append('avatar', data.avatar);

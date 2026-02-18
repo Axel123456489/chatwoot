@@ -12,10 +12,14 @@ import { downloadFile } from '@chatwoot/utils';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { emitter } from 'shared/helpers/mitt';
 
-const { attachment } = defineProps({
+const { attachment, externalDuration, showTranscribedText } = defineProps({
   attachment: {
     type: Object,
     required: true,
+  },
+  externalDuration: {
+    type: Number,
+    default: null,
   },
   showTranscribedText: {
     type: Boolean,
@@ -42,7 +46,13 @@ const playbackSpeed = ref(1);
 const { uid } = getCurrentInstance();
 
 const onLoadedMetadata = () => {
-  duration.value = audioPlayer.value?.duration;
+  const audioDuration = audioPlayer.value?.duration;
+  // Use external duration if audio duration is Infinity or NaN (common with WebM recordings)
+  if (!Number.isFinite(audioDuration) && externalDuration) {
+    duration.value = externalDuration;
+  } else {
+    duration.value = audioDuration;
+  }
 };
 
 const playbackSpeedLabel = computed(() => {
@@ -53,7 +63,13 @@ const playbackSpeedLabel = computed(() => {
 // When the onLoadMetadata is called, so we need to set the duration
 // value when the component is mounted
 onMounted(() => {
-  duration.value = audioPlayer.value?.duration;
+  const audioDuration = audioPlayer.value?.duration;
+  // Use external duration if provided and audio duration is not valid
+  if ((!Number.isFinite(audioDuration) || !audioDuration) && externalDuration) {
+    duration.value = externalDuration;
+  } else {
+    duration.value = audioDuration;
+  }
   audioPlayer.value.playbackRate = playbackSpeed.value;
 });
 

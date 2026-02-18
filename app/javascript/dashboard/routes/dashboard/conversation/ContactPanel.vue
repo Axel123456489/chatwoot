@@ -5,9 +5,7 @@ import {
   useFunctionGetter,
   useStore,
 } from 'dashboard/composables/store';
-import { useAccount } from 'dashboard/composables/useAccount';
 import { useUISettings } from 'dashboard/composables/useUISettings';
-import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import ContactConversations from './ContactConversations.vue';
@@ -54,22 +52,12 @@ const isShopifyFeatureEnabled = computed(
   () => shopifyIntegration.value.enabled
 );
 
-const { isCloudFeatureEnabled } = useAccount();
-
-const isLinearFeatureEnabled = computed(() =>
-  isCloudFeatureEnabled(FEATURE_FLAGS.LINEAR)
-);
-
 const linearIntegration = useFunctionGetter(
   'integrations/getIntegration',
   'linear'
 );
 
-const isLinearClientIdConfigured = computed(() => {
-  return !!linearIntegration.value?.id;
-});
-
-const isLinearConnected = computed(
+const isLinearIntegrationEnabled = computed(
   () => linearIntegration.value?.enabled || false
 );
 
@@ -250,13 +238,7 @@ onMounted(() => {
               <MacrosList :conversation-id="conversationId" />
             </AccordionItem>
           </woot-feature-toggle>
-          <div
-            v-else-if="
-              element.name === 'linear_issues' &&
-              isLinearFeatureEnabled &&
-              isLinearClientIdConfigured
-            "
-          >
+          <div v-else-if="element.name === 'linear_issues'">
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LINEAR_ISSUES')"
               :is-open="isContactSidebarItemOpen('is_linear_issues_open')"
@@ -265,7 +247,7 @@ onMounted(() => {
                 value => toggleSidebarUIState('is_linear_issues_open', value)
               "
             >
-              <LinearSetupCTA v-if="!isLinearConnected" />
+              <LinearSetupCTA v-if="!isLinearIntegrationEnabled" />
               <LinearIssuesList v-else :conversation-id="conversationId" />
             </AccordionItem>
           </div>

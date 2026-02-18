@@ -50,4 +50,8 @@ class ContactPolicy < ApplicationPolicy
   def destroy?
     @account_user.administrator?
   end
+
+  def whatsapp_call?
+    true
+  end
 end

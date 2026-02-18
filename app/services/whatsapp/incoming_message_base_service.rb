@@ -24,23 +24,50 @@ class Whatsapp::IncomingMessageBaseService
   private
 
   def process_messages
-    # We don't support reactions & ephemeral message now, we need to skip processing the message
-    # if the webhook event is a reaction or an ephermal message or an unsupported message.
-    return if unprocessable_message_type?(message_type)
+    # Handle reactions separately - they update existing messages
+    if message_type == 'reaction'
+      process_reaction
+      return
+    end
 
-    # Multiple webhook events can be received for the same message due to
-    # misconfigurations in the Meta business manager account.
-    # We use an atomic Redis SET NX to prevent concurrent workers from both
-    # processing the same message simultaneously.
-    return if find_message_by_source_id(messages_data.first[:id])
-    return unless lock_message_source_id!
+    # We don't support ephemeral message now, we need to skip processing the message
+    # if the webhook event is an ephermal message or an unsupported message.
+    if unprocessable_message_type?(message_type)
+      WhatsappMessageError.create!(
+        raw_payload: @processed_params,
+        error_type: 'unsupported_type',
+        error_message: "Tipo de mensaje no soportado: #{message_type}"
+      )
+      return
+    end
 
+    # Multiple webhook event can be received against the same message due to misconfigurations in the Meta
+    # business manager account. While we have not found the core reason yet, the following line ensure that
+    # there are no duplicate messages created.
+    if find_message_by_source_id(messages_data.first[:id]) || message_under_process?
+      WhatsappMessageError.create!(
+        raw_payload: @processed_params,
+        error_type: 'duplicate_or_processing',
+        error_message: "Mensaje duplicado o en proceso: #{messages_data.first[:id]}"
+      )
+      return
+    end
+
+    cache_message_source_id_in_redis
     set_contact
-    return unless @contact
+    unless @contact
+      WhatsappMessageError.create!(
+        raw_payload: @processed_params,
+        error_type: 'no_contact',
+        error_message: 'No se pudo asociar el mensaje a un contacto válido.'
+      )
+      return
+    end
 
     ActiveRecord::Base.transaction do
       set_conversation
       create_messages
+      clear_message_source_id_from_redis
     end
   end
 
@@ -50,6 +77,34 @@ class Whatsapp::IncomingMessageBaseService
     update_message_with_status(@message, @processed_params[:statuses].first)
   rescue ArgumentError => e
     Rails.logger.error "Error while processing whatsapp status update #{e.message}"
+  end
+
+  def process_reaction
+    reaction_data = @processed_params[:messages].first[:reaction]
+    return if reaction_data.blank?
+
+    target_message_id = reaction_data[:message_id]
+    emoji = reaction_data[:emoji]
+    sender_wa_id = @processed_params[:messages].first[:from]
+
+    target_message = inbox.messages.find_by(source_id: target_message_id)
+    return unless target_message
+
+    reactions = target_message.content_attributes['reactions'] || {}
+
+    if emoji.present?
+      reactions[sender_wa_id] = {
+        'emoji' => emoji,
+        'timestamp' => @processed_params[:messages].first[:timestamp].to_i,
+        'user_type' => 'customer'
+      }
+    else
+      reactions.delete(sender_wa_id)
+    end
+
+    target_message.update!(content_attributes: target_message.content_attributes.merge('reactions' => reactions))
+  rescue StandardError => e
+    Rails.logger.error "[WhatsApp] Error processing reaction: #{e.message}"
   end
 
   def update_message_with_status(message, status)
@@ -63,7 +118,15 @@ class Whatsapp::IncomingMessageBaseService
 
   def create_messages
     message = messages_data.first
-    log_error(message) && return if error_webhook_event?(message)
+    if error_webhook_event?(message)
+      WhatsappMessageError.create!(
+        raw_payload: @processed_params,
+        error_type: 'webhook_error',
+        error_message: message['errors'].try(:first).try(:[], 'title') || 'Error en el webhook.'
+      )
+      log_error(message)
+      return
+    end
 
     process_in_reply_to(message)
 
@@ -81,6 +144,53 @@ class Whatsapp::IncomingMessageBaseService
 
   def create_regular_message(message)
     create_message(message, source_id: message[:id])
+
+    # Convertimos a hash con acceso indiferente para evitar problemas con claves string/símbolo
+    message = message.with_indifferent_access
+
+    begin
+      Rails.logger.info "📦 Mensaje recibido: #{message.inspect}"
+
+      referral_image_url = message.dig(:referral, :image_url)
+      Rails.logger.info "🔍 referral_image_url detectado: #{referral_image_url.inspect}"
+
+      if referral_image_url.present? && referral_image_url =~ URI::DEFAULT_PARSER.make_regexp
+        Rails.logger.info "📸 Descargando imagen desde referral: #{referral_image_url}"
+
+        begin
+          file_uri = URI.parse(referral_image_url)
+          downloaded_file = URI.open(file_uri)
+
+          raise 'Archivo descargado está vacío' if downloaded_file.blank?
+
+          @message.attachments.new(
+            account_id: @message.account_id,
+            file_type: :image,
+            file: {
+              io: downloaded_file,
+              filename: File.basename(file_uri.path),
+              content_type: downloaded_file.content_type || 'image/png'
+            },
+            fallback_title: 'Imagen referida desde campaña'
+          )
+
+          Rails.logger.info '✅ Imagen descargada y adjuntada exitosamente'
+
+        rescue StandardError => e
+          Rails.logger.error "❌ Error al procesar imagen del referral: #{e.message}\n#{e.backtrace.join("\n")}"
+
+          # ⚠️ Mensaje visible si falla la imagen
+          @message.content = "#{@message.content}\n⚠️ Imagen de campaña no disponible." if @message.content.present?
+          @message.content ||= '⚠️ Imagen de campaña no disponible.'
+        end
+
+      else
+        Rails.logger.warn "⚠️ URL de imagen no válida o no presente en referral: #{referral_image_url.inspect}"
+      end
+    rescue StandardError => e
+      Rails.logger.error "❌ Error inesperado al agregar imagen desde referral: #{e.message}\n#{e.backtrace.join("\n")}"
+    end
+
     attach_files
     attach_location if message_type == 'location'
     @message.save!

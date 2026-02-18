@@ -43,7 +43,6 @@ import VoiceCallBubble from './bubbles/VoiceCall.vue';
 
 import MessageError from './MessageError.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
-import { useBranding } from 'shared/composables/useBranding';
 
 /**
  * @typedef {Object} Attachment
@@ -133,6 +132,9 @@ const props = defineProps({
   senderId: { type: Number, default: null },
   senderType: { type: String, default: null },
   sourceId: { type: String, default: '' }, // eslint-disable-line vue/no-unused-properties
+  callStatus: { type: String, default: null }, // For WhatsApp call messages
+  callDirection: { type: String, default: null }, // For WhatsApp call messages
+  callMetadata: { type: Object, default: null }, // For WhatsApp call messages
 });
 
 const emit = defineEmits(['retry']);
@@ -144,7 +146,6 @@ const { t } = useI18n();
 const route = useRoute();
 const inboxGetter = useMapGetter('inboxes/getInbox');
 const inbox = computed(() => inboxGetter.value(props.inboxId) || {});
-const { replaceInstallationName } = useBranding();
 
 /**
  * Computes the message variant based on props
@@ -183,6 +184,23 @@ const variant = computed(() => {
     [MESSAGE_TYPES.OUTGOING]: MESSAGE_VARIANTS.AGENT,
     [MESSAGE_TYPES.TEMPLATE]: MESSAGE_VARIANTS.TEMPLATE,
   };
+
+  const voiceCallDirection = (() => {
+    const dir =
+      props.callDirection ||
+      props.callMetadata?.call_direction ||
+      props.callMetadata?.callDirection ||
+      props.contentAttributes?.data?.call_direction ||
+      props.contentAttributes?.data?.callDirection;
+    return typeof dir === 'string' ? dir.toLowerCase() : null;
+  })();
+
+  // Treat voice_call messages like regular user/agent messages based on direction
+  // (fixes outbound calls being rendered as inbound)
+  if (props.contentType === CONTENT_TYPES.VOICE_CALL) {
+    if (voiceCallDirection === 'outbound') return MESSAGE_VARIANTS.AGENT;
+    return MESSAGE_VARIANTS.USER;
+  }
 
   return variants[props.messageType] || MESSAGE_VARIANTS.USER;
 });
@@ -224,6 +242,19 @@ const isBotOrAgentMessage = computed(() => {
 const orientation = computed(() => {
   if (isBotOrAgentMessage.value) {
     return ORIENTATION.RIGHT;
+  }
+
+  // Voice call messages align based on call direction (inbound/outbound)
+  if (props.contentType === CONTENT_TYPES.VOICE_CALL) {
+    const dir =
+      props.callDirection ||
+      props.callMetadata?.call_direction ||
+      props.callMetadata?.callDirection ||
+      props.contentAttributes?.data?.call_direction ||
+      props.contentAttributes?.data?.callDirection;
+    const normalized = typeof dir === 'string' ? dir.toLowerCase() : null;
+    if (normalized === 'outbound') return ORIENTATION.RIGHT;
+    return ORIENTATION.LEFT;
   }
 
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return ORIENTATION.CENTER;
@@ -272,7 +303,32 @@ const shouldGroupWithNext = computed(() => {
 });
 
 const shouldShowAvatar = computed(() => {
-  if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
+  // WhatsApp calls: show avatar for outgoing calls (agent), hide for incoming calls
+  const isWhatsAppCall =
+    props.callStatus !== null && props.callStatus !== undefined;
+  if (props.contentType === CONTENT_TYPES.VOICE_CALL && isWhatsAppCall) {
+    const dir =
+      props.callDirection ||
+      props.callMetadata?.call_direction ||
+      props.callMetadata?.callDirection ||
+      props.contentAttributes?.data?.call_direction ||
+      props.contentAttributes?.data?.callDirection;
+    const normalized = typeof dir === 'string' ? dir.toLowerCase() : null;
+
+    // Outbound WhatsApp call messages are frequently created as activity messages in the backend.
+    // Still show avatar if we can infer this is an outbound call and there's a sender.
+    if (normalized === 'outbound' && props.sender) return true;
+
+    // Hide avatar for inbound calls (system-like activity messages)
+    return false;
+  }
+
+  // Show avatar for voice_call messages even if they are activities
+  if (
+    props.messageType === MESSAGE_TYPES.ACTIVITY &&
+    props.contentType !== CONTENT_TYPES.VOICE_CALL
+  )
+    return false;
   if (orientation.value === ORIENTATION.LEFT) return false;
 
   return true;
@@ -344,6 +400,8 @@ const shouldShowContextMenu = computed(() => {
 });
 
 const isBubble = computed(() => {
+  // Voice call messages should show as bubbles even if they are activities
+  if (props.contentType === CONTENT_TYPES.VOICE_CALL) return true;
   return props.messageType !== MESSAGE_TYPES.ACTIVITY;
 });
 
@@ -365,6 +423,7 @@ const contextMenuEnabledOptions = computed(() => {
   const hasAttachments = !!(props.attachments && props.attachments.length > 0);
 
   const isOutgoing = props.messageType === MESSAGE_TYPES.OUTGOING;
+  const isIncoming = props.messageType === MESSAGE_TYPES.INCOMING;
   const isFailedOrProcessing =
     props.status === MESSAGE_STATUS.FAILED ||
     props.status === MESSAGE_STATUS.PROGRESS;
@@ -382,6 +441,7 @@ const contextMenuEnabledOptions = computed(() => {
       !props.private &&
       props.inboxSupportsReplyTo.outgoing &&
       !isFailedOrProcessing,
+    react: isIncoming && !isFailedOrProcessing && !isMessageDeleted.value,
   };
 });
 
@@ -391,17 +451,15 @@ const shouldRenderMessage = computed(() => {
   const isUnsupported = props.contentAttributes?.isUnsupported;
   const isAnIntegrationMessage =
     props.contentType === CONTENT_TYPES.INTEGRATIONS;
-  const isFailedMessage = props.status === MESSAGE_STATUS.FAILED;
-  const hasExternalError = !!props.contentAttributes?.externalError;
 
   return (
     hasAttachments ||
     props.content ||
     isEmailContentType ||
+    // Ensure voice_call messages always render (they may have no text)
+    props.contentType === CONTENT_TYPES.VOICE_CALL ||
     isUnsupported ||
-    isAnIntegrationMessage ||
-    isFailedMessage ||
-    hasExternalError
+    isAnIntegrationMessage
   );
 });
 
@@ -478,7 +536,7 @@ const avatarInfo = computed(() => {
 
 const avatarTooltip = computed(() => {
   if (props.contentAttributes?.externalEcho) {
-    return replaceInstallationName(t('CONVERSATION.NATIVE_APP_ADVISORY'));
+    return t('CONVERSATION.NATIVE_APP_ADVISORY');
   }
   if (avatarInfo.value.name === '') return '';
   return `${t('CONVERSATION.SENT_BY')} ${avatarInfo.value.name}`;
@@ -505,6 +563,22 @@ provideMessageContext({
   orientation,
   isBotOrAgentMessage,
   shouldGroupWithNext,
+  // Create a computed ref for the full message object for components that need it
+  message: computed(() => ({
+    id: props.id,
+    messageType: props.messageType,
+    status: props.status,
+    attachments: props.attachments,
+    content: props.content,
+    contentAttributes: props.contentAttributes,
+    contentType: props.contentType,
+    conversationId: props.conversationId,
+    createdAt: props.createdAt,
+    callStatus: props.callStatus,
+    sender: props.sender,
+    senderId: props.senderId,
+    senderType: props.senderType,
+  })),
 });
 </script>
 

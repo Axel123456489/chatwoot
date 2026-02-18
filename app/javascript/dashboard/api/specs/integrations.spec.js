@@ -74,7 +74,7 @@ describe('#integrationAPI', () => {
       integrationAPI.createHook(hookData);
       expect(axiosMock.post).toHaveBeenCalledWith(
         '/api/v1/integrations/hooks',
-        hookData
+        { hook: hookData }
       );
     });
 

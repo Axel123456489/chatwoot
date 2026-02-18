@@ -27,6 +27,7 @@
 class CustomRole < ApplicationRecord
   belongs_to :account
   has_many :account_users, dependent: :nullify
+  has_many :canned_responses, dependent: :nullify
 
   PERMISSIONS = %w[
     conversation_manage

@@ -1,12 +1,27 @@
-class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseTool
-  def self.name
+class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
+  def name
     'search_documentation'
   end
-  description 'Search and retrieve documentation from knowledge base'
 
-  param :query, desc: 'Search Query', required: true
+  def description
+    'Search and retrieve documentation from knowledge base'
+  end
 
-  def execute(query:)
+  def parameters
+    {
+      type: 'object',
+      properties: {
+        search_query: {
+          type: 'string',
+          description: 'The search query to look up in the documentation.'
+        }
+      },
+      required: ['search_query']
+    }
+  end
+
+  def execute(arguments)
+    query = arguments['search_query']
     Rails.logger.info { "#{self.class.name}: #{query}" }
 
     translated_query = Captain::Llm::TranslateQueryService

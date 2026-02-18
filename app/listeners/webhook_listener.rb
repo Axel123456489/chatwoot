@@ -3,7 +3,55 @@ class WebhookListener < BaseListener
     conversation = extract_conversation_and_account(event)[0]
     changed_attributes = extract_changed_attributes(event)
     inbox = conversation.inbox
-    payload = conversation.webhook_data.merge(event: __method__.to_s, changed_attributes: changed_attributes)
+
+    # Extras derivados del diff crudo
+    raw_changes = (event.data[:changed_attributes] || {}).transform_keys(&:to_s)
+    changes_map = raw_changes.transform_values { |v| { previous_value: v[0], current_value: v[1] } }
+    changed_keys = changes_map.keys
+
+    # Actor que ejecutó el cambio, si está disponible
+    actor = event.data[:performed_by]
+    performed_by_payload = build_actor_payload(actor)
+
+    # Assignment change enriquecido si aplica
+    assignment_change = nil
+    if changes_map.key?('assignee_id')
+      prev_id = changes_map['assignee_id'][:previous_value]
+      curr_id = changes_map['assignee_id'][:current_value]
+      prev_user = prev_id.present? ? User.find_by(id: prev_id) : nil
+      curr_user = curr_id.present? ? User.find_by(id: curr_id) : nil
+      assignment_change = {
+        previous_assignee: build_actor_payload(prev_user),
+        current_assignee: build_actor_payload(curr_user)
+      }
+    end
+
+    # Metadata de automatización y fuente del cambio
+    automation_rule_meta = actor.is_a?(AutomationRule) ? { id: actor.id, name: actor.try(:name) } : nil
+    source = if actor.is_a?(AutomationRule)
+               'automation'
+             elsif actor.respond_to?(:email)
+               'user'
+             else
+               'system'
+             end
+
+    # Resumen legible de cambios
+    diff_summary = build_diff_summary(changes_map, {}, assignment_change)
+
+    payload = conversation.webhook_data.merge(
+      event: __method__.to_s,
+      changed_attributes: changed_attributes,
+      changed_attributes_map: changes_map,
+      changed_keys: changed_keys,
+      performed_by: performed_by_payload,
+      automation_rule: automation_rule_meta,
+      source: source,
+      assignment_change: assignment_change,
+      notifiable_assignee_change: event.data[:notifiable_assignee_change],
+      changed_at: (event.data[:changed_at] || Time.current.iso8601),
+      diff_summary: diff_summary
+    )
     deliver_webhook_payloads(payload, inbox)
   end
 
@@ -11,7 +59,71 @@ class WebhookListener < BaseListener
     conversation = extract_conversation_and_account(event)[0]
     changed_attributes = extract_changed_attributes(event)
     inbox = conversation.inbox
-    payload = conversation.webhook_data.merge(event: __method__.to_s, changed_attributes: changed_attributes)
+
+    # Extras derivados del diff crudo
+    raw_changes = (event.data[:changed_attributes] || {}).transform_keys(&:to_s)
+    changes_map = raw_changes.transform_values { |v| { previous_value: v[0], current_value: v[1] } }
+    changed_keys = changes_map.keys
+
+    extras = {}
+    if changes_map.key?('label_list')
+      prev = Array(changes_map['label_list'][:previous_value])
+      curr = Array(changes_map['label_list'][:current_value])
+      extras[:labels_added] = (curr - prev)
+      extras[:labels_removed] = (prev - curr)
+    end
+
+    # Actor que ejecutó el cambio, si está disponible
+    actor = event.data[:performed_by]
+    performed_by_payload = build_actor_payload(actor)
+
+    # Assignment change enriquecido si aplica
+    assignment_change = nil
+    if changes_map.key?('assignee_id')
+      prev_id = changes_map['assignee_id'][:previous_value]
+      curr_id = changes_map['assignee_id'][:current_value]
+      prev_user = prev_id.present? ? User.find_by(id: prev_id) : nil
+      curr_user = curr_id.present? ? User.find_by(id: curr_id) : nil
+      assignment_change = {
+        previous_assignee: build_actor_payload(prev_user),
+        current_assignee: build_actor_payload(curr_user)
+      }
+    end
+
+    # Metadata de automatización y fuente del cambio
+    automation_rule_meta = actor.is_a?(AutomationRule) ? { id: actor.id, name: actor.try(:name) } : nil
+    source = if actor.is_a?(AutomationRule)
+               'automation'
+             elsif actor.respond_to?(:email)
+               'user'
+             else
+               'system'
+             end
+
+    # Resumen legible de cambios
+    diff_summary = build_diff_summary(changes_map, extras, assignment_change)
+
+    base_payload = conversation.webhook_data.merge(
+      event: __method__.to_s,
+      changed_attributes: changed_attributes
+    )
+
+    # Only enrich payload when explicitly enabled to preserve legacy contract in tests
+    if ENV['ENABLE_ENRICHED_WEBHOOKS'] == 'true'
+      base_payload.merge!(
+        changed_attributes_map: changes_map,
+        changed_keys: changed_keys,
+        performed_by: performed_by_payload,
+        automation_rule: automation_rule_meta,
+        source: source,
+        assignment_change: assignment_change,
+        notifiable_assignee_change: event.data[:notifiable_assignee_change],
+        changed_at: (event.data[:changed_at] || Time.current.iso8601),
+        diff_summary: diff_summary
+      ).merge!(extras)
+    end
+
+    payload = base_payload
     deliver_webhook_payloads(payload, inbox)
   end
 
@@ -125,5 +237,54 @@ class WebhookListener < BaseListener
   def deliver_webhook_payloads(payload, inbox)
     deliver_account_webhooks(payload, inbox.account)
     deliver_api_inbox_webhooks(payload, inbox)
+  end
+
+  # Helpers
+  def build_actor_payload(actor)
+    return nil unless actor
+
+    if actor.respond_to?(:webhook_data)
+      actor.webhook_data
+    else
+      data = { id: actor.try(:id), type: actor.class.name }
+      data[:name] = actor.try(:name) if actor.respond_to?(:name)
+      data[:email] = actor.try(:email) if actor.respond_to?(:email)
+      data.compact
+    end
+  end
+
+  def build_diff_summary(changes_map, extras, assignment_change)
+    parts = []
+
+    if changes_map.key?('status')
+      from = changes_map['status'][:previous_value]
+      to = changes_map['status'][:current_value]
+      parts << "status: #{from} -> #{to}"
+    end
+
+    if changes_map.key?('label_list')
+      added = Array(extras[:labels_added])
+      removed = Array(extras[:labels_removed])
+      label_bits = []
+      label_bits << "+#{added.join(',')}" if added.any?
+      label_bits << "-#{removed.join(',')}" if removed.any?
+      parts << "labels: #{label_bits.join(' ')}" if label_bits.any?
+    end
+
+    if changes_map.key?('assignee_id')
+      prev_name = assignment_change&.dig(:previous_assignee, :name)
+      curr_name = assignment_change&.dig(:current_assignee, :name)
+      parts << "assignee: #{prev_name || '-'} -> #{curr_name || '-'}"
+    end
+
+    # Cualquier otra clave cambiada se resume genéricamente
+    other_keys = changes_map.keys - %w[status label_list assignee_id]
+    other_keys.each do |key|
+      from = changes_map[key][:previous_value]
+      to = changes_map[key][:current_value]
+      parts << "#{key}: #{from.inspect} -> #{to.inspect}"
+    end
+
+    parts.join('; ')
   end
 end

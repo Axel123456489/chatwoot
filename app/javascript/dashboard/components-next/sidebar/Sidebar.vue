@@ -8,7 +8,6 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
-import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useWindowSize, useEventListener } from '@vueuse/core';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
@@ -50,18 +49,6 @@ const isRTL = useMapGetter('accounts/isRTL');
 
 const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
-
-const accountId = useMapGetter('getCurrentAccountId');
-const isFeatureEnabledonAccount = useMapGetter(
-  'accounts/isFeatureEnabledonAccount'
-);
-
-const hasAdvancedAssignment = computed(() => {
-  return isFeatureEnabledonAccount.value(
-    accountId.value,
-    FEATURE_FLAGS.ADVANCED_ASSIGNMENT
-  );
-});
 
 const toggleShortcutModalFn = show => {
   if (show) {
@@ -255,6 +242,12 @@ const menuItems = computed(() => {
           activeOn: ['conversation_through_unattended'],
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
           to: accountScopedRoute('conversation_unattended'),
+        },
+        {
+          name: 'ChatBot',
+          activeOn: ['conversation_through_chatbot'],
+          label: t('SIDEBAR.CHATBOT_CONVERSATIONS'),
+          to: accountScopedRoute('conversation_chatbot'),
         },
         {
           name: 'Folders',
@@ -579,6 +572,12 @@ const menuItems = computed(() => {
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('general_settings_index'),
         },
+        {
+          name: 'Settings Storage',
+          label: t('SIDEBAR.STORAGE_MANAGEMENT'),
+          icon: 'i-lucide-server',
+          to: accountScopedRoute('storage_settings'),
+        },
         // {
         //   name: 'Settings Captain',
         //   label: t('SIDEBAR.CAPTAIN_AI'),
@@ -597,16 +596,12 @@ const menuItems = computed(() => {
           icon: 'i-lucide-users',
           to: accountScopedRoute('settings_teams_list'),
         },
-        ...(hasAdvancedAssignment.value
-          ? [
-              {
-                name: 'Settings Agent Assignment',
-                label: t('SIDEBAR.AGENT_ASSIGNMENT'),
-                icon: 'i-lucide-user-cog',
-                to: accountScopedRoute('assignment_policy_index'),
-              },
-            ]
-          : []),
+        {
+          name: 'Settings Agent Assignment',
+          label: t('SIDEBAR.AGENT_ASSIGNMENT'),
+          icon: 'i-lucide-user-cog',
+          to: accountScopedRoute('assignment_policy_index'),
+        },
         {
           name: 'Settings Inboxes',
           label: t('SIDEBAR.INBOXES'),
@@ -648,6 +643,12 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.CANNED_RESPONSES'),
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
+        },
+        {
+          name: 'Settings Templates',
+          label: t('SIDEBAR.TEMPLATES'),
+          icon: 'i-lucide-file-text',
+          to: accountScopedRoute('templates_list'),
         },
         {
           name: 'Settings Integrations',

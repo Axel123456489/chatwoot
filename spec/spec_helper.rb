@@ -3,6 +3,9 @@ require 'webmock/rspec'
 WebMock.disable_net_connect!(allow_localhost: true)
 
 RSpec.configure do |config|
+  # Persist example statuses to support --only-failures/--next-failure
+  config.example_status_persistence_file_path = 'tmp/rspec_examples.txt'
+
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end

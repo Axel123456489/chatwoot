@@ -39,7 +39,7 @@ class ConversationFinder
   def perform
     set_up
 
-    mine_count, unassigned_count, all_count, = set_count_for_all_conversations
+    mine_count, unassigned_count, all_count = set_count_for_all_conversations
     assigned_count = all_count - unassigned_count
 
     filter_by_assignee_type
@@ -127,6 +127,8 @@ class ConversationFinder
       @conversations = current_user.participating_conversations.where(account_id: current_account.id)
     when 'unattended'
       @conversations = @conversations.unattended
+    when 'chatbot'
+      @conversations = @conversations.with_pending_n8n_flow
     end
     @conversations
   end
@@ -167,10 +169,24 @@ class ConversationFinder
   end
 
   def set_count_for_all_conversations
+    scoped_ids = @conversations.except(:select, :order, :group, :having, :includes)
+                               .unscope(:select, :order, :group, :having, :includes)
+                               .select(:id)
+
+    counts_relation = current_account.conversations.where(id: scoped_ids)
+
+    aggregate_columns = [
+      "COUNT(*) FILTER (WHERE assignee_id = #{current_user.id.to_i}) AS mine_count",
+      'COUNT(*) FILTER (WHERE assignee_id IS NULL) AS unassigned_count',
+      'COUNT(*) AS all_count'
+    ]
+
+    counts_record = counts_relation.select(aggregate_columns.join(', ')).take
+
     [
-      @conversations.assigned_to(current_user).count,
-      @conversations.unassigned.count,
-      @conversations.count
+      counts_record&.read_attribute('mine_count').to_i,
+      counts_record&.read_attribute('unassigned_count').to_i,
+      counts_record&.read_attribute('all_count').to_i
     ]
   end
 
@@ -190,11 +206,16 @@ class ConversationFinder
     sort_by, sort_order = SORT_OPTIONS[params[:sort_by]] || SORT_OPTIONS['last_activity_at_desc']
     @conversations = @conversations.send(sort_by, sort_order)
 
-    if params[:updated_within].present?
-      @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
-    else
-      @conversations.page(current_page).per(ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25').to_i)
-    end
+    @conversations = if params[:updated_within].present?
+                       @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
+                     else
+                       @conversations.page(current_page).per(ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25').to_i)
+                     end
+
+    @conversations.load
+    Conversations::OpenConversationPreloader.new(@conversations).preload!
+
+    @conversations
   end
 end
 ConversationFinder.prepend_mod_with('ConversationFinder')

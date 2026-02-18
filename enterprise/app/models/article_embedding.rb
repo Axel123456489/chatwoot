@@ -19,8 +19,6 @@ class ArticleEmbedding < ApplicationRecord
 
   after_commit :update_response_embedding
 
-  delegate :account_id, to: :article
-
   private
 
   def update_response_embedding

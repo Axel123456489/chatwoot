@@ -31,17 +31,17 @@ const onRemoveAttachment = itemIndex => {
 };
 
 const formatFileSize = file => {
-  const size = file.byte_size || file.size;
+  const size = (file && (file.byte_size ?? file.size)) ?? 0;
   return formatBytes(size, 0);
 };
 
 const isTypeImage = file => {
-  const type = file.content_type || file.type;
-  return type.includes('image');
+  const type = file?.content_type || file?.type;
+  return typeof type === 'string' && type.includes('image');
 };
 
 const fileName = file => {
-  return file.filename || file.name;
+  return (file && (file.filename || file.name)) || '';
 };
 </script>
 
@@ -49,12 +49,12 @@ const fileName = file => {
   <div class="flex flex-wrap gap-y-1 gap-x-2 overflow-auto max-h-[12.5rem]">
     <div
       v-for="(attachment, index) in nonRecordedAudioAttachments"
-      :key="attachment.id"
-      class="flex items-center p-1 bg-n-slate-3 gap-1 rounded-md w-[15rem]"
+      :key="attachment.id || attachment.blobSignedId || index"
+      class="flex items-center p-1 bg-n-slate-3 gap-1 rounded-md w-[15rem] mb-1"
     >
       <div class="max-w-[4rem] flex-shrink-0 w-6 flex items-center">
         <img
-          v-if="isTypeImage(attachment.resource)"
+          v-if="isTypeImage(attachment.resource) && attachment.thumb"
           class="object-cover w-6 h-6 rounded-sm"
           :src="attachment.thumb"
         />

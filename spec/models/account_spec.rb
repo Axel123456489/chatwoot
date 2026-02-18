@@ -206,6 +206,16 @@ RSpec.describe Account do
       end
     end
 
+    context 'when allow_agents_view_all_conversations flag is set' do
+      it 'returns the flag value as boolean' do
+        account.allow_agents_view_all_conversations = 'true'
+        expect(account.allow_agents_view_all_conversations?).to be(true)
+
+        account.allow_agents_view_all_conversations = nil
+        expect(account.allow_agents_view_all_conversations?).to be(false)
+      end
+    end
+
     context 'when using with_auto_resolve scope' do
       it 'finds accounts with auto_resolve_after set' do
         account.update(auto_resolve_after: 40 * 24 * 60)

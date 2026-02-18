@@ -12,9 +12,21 @@ export function useCallSession() {
     callDuration.value = elapsed;
   });
 
-  const activeCall = computed(() => callsStore.activeCall);
-  const incomingCalls = computed(() => callsStore.incomingCalls);
-  const hasActiveCall = computed(() => callsStore.hasActiveCall);
+  const activeCall = computed(() => {
+    const call = callsStore.activeCall;
+    console.log('[useCallSession] activeCall computed:', call);
+    return call;
+  });
+  const incomingCalls = computed(() => {
+    const calls = callsStore.incomingCalls;
+    console.log('[useCallSession] incomingCalls computed:', calls);
+    return calls;
+  });
+  const hasActiveCall = computed(() => {
+    const hasCall = callsStore.hasActiveCall;
+    console.log('[useCallSession] hasActiveCall computed:', hasCall);
+    return hasCall;
+  });
 
   watch(
     hasActiveCall,

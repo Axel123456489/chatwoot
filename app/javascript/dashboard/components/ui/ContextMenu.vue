@@ -77,6 +77,15 @@ const handleClose = () => {
   emit('close');
 };
 
+const handleFocusOut = event => {
+  // Check if the new focus target is still within the menu
+  const relatedTarget = event.relatedTarget;
+  if (menuRef.value && menuRef.value.contains(relatedTarget)) {
+    return;
+  }
+  handleClose();
+};
+
 onUnmounted(() => {
   isLocked.value = false;
 });
@@ -89,7 +98,7 @@ onUnmounted(() => {
       class="fixed outline-none z-[9999] cursor-pointer"
       :style="position"
       tabindex="0"
-      @blur="handleClose"
+      @focusout="handleFocusOut"
     >
       <slot />
     </div>

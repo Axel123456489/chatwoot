@@ -1,3 +1,13 @@
+const sortMessagesChronologically = messages =>
+  messages.sort((a, b) => {
+    const timeDiff = Number(a.created_at) - Number(b.created_at);
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+
+    return Number(a.id) - Number(b.id);
+  });
+
 import types from '../../mutation-types';
 import getters, { getSelectedChatConversation } from './getters';
 import actions from './actions';
@@ -83,7 +93,16 @@ export const mutations = {
   [types.SET_PREVIOUS_CONVERSATIONS](_state, { id, data }) {
     if (data.length) {
       const [chat] = _state.allConversations.filter(c => c.id === id);
-      chat.messages.unshift(...data);
+      const existingIds = new Set(chat.messages.map(message => message.id));
+      const dedupedPayload = data.filter(message => {
+        return !existingIds.has(message.id);
+      });
+      if (!dedupedPayload.length) {
+        return;
+      }
+
+      chat.messages.unshift(...dedupedPayload);
+      sortMessagesChronologically(chat.messages);
     }
   },
   [types.SET_ALL_ATTACHMENTS](_state, { id, data }) {
@@ -215,15 +234,48 @@ export const mutations = {
 
     const pendingMessageIndex = findPendingMessageIndex(chat, message);
     if (pendingMessageIndex !== -1) {
-      chat.messages[pendingMessageIndex] = message;
+      // Preserve existing attachments when the update payload doesn't include them.
+      // Some realtime updates (eg. message.updated) may omit `attachments`, which would otherwise
+      // wipe attachments from the UI.
+      const existingMessage = chat.messages[pendingMessageIndex];
+      const mergedMessage = {
+        ...existingMessage,
+        ...message,
+      };
+      if (message.attachments === undefined && existingMessage?.attachments) {
+        mergedMessage.attachments = existingMessage.attachments;
+      }
+      // Use splice to ensure Vue reactivity
+      chat.messages.splice(pendingMessageIndex, 1, mergedMessage);
     } else {
       chat.messages.push(message);
+      sortMessagesChronologically(chat.messages);
       chat.timestamp = message.created_at;
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;
       chat.unread_count = unreadCount;
       if (selectedChatId === conversationId) {
+        emitter.emit(BUS_EVENTS.FETCH_LABEL_SUGGESTIONS);
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
       }
+    }
+  },
+
+  updateMessageMeta(
+    { allConversations },
+    { conversationId, messageId, contentAttributes }
+  ) {
+    const [chat] = getSelectedChatConversation({
+      allConversations,
+      selectedChatId: conversationId,
+    });
+    if (!chat) return;
+
+    const messageIndex = chat.messages.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1) {
+      chat.messages[messageIndex] = {
+        ...chat.messages[messageIndex],
+        content_attributes: contentAttributes,
+      };
     }
   },
 
@@ -252,6 +304,7 @@ export const mutations = {
       const { messages, ...updates } = conversation;
       allConversations[index] = { ...selectedConversation, ...updates };
       if (_state.selectedChatId === conversation.id) {
+        emitter.emit(BUS_EVENTS.FETCH_LABEL_SUGGESTIONS);
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
       }
     } else {

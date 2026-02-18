@@ -1,12 +1,18 @@
 class Internal::ReconcilePlanConfigService
   def perform
-    remove_premium_config_reset_warning
-    return if ChatwootHub.pricing_plan != 'community'
+    if ChatwootHub.pricing_plan == 'community'
+      reconcile_premium_features
 
-    create_premium_config_reset_warning if premium_config_reset_required?
+      if premium_config_reset_required?
+        create_premium_config_reset_warning
+      else
+        remove_premium_config_reset_warning
+      end
 
-    reconcile_premium_config
-    reconcile_premium_features
+      reconcile_premium_config
+    else
+      remove_premium_config_reset_warning
+    end
   end
 
   private

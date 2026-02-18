@@ -1,0 +1,55 @@
+tags:
+  - Conversations
+operationId: merge-messages-of-a-conversation
+summary: Merge Messages
+description: Move all messages from this conversation into the target conversation (must be in the same inbox) and delete the source conversation
+security:
+  - userApiKey: []
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        required:
+          - target_id
+        properties:
+          target_id:
+            type: number
+            description: Display ID of the target conversation within the same inbox
+            example: 12345
+responses:
+  '200':
+    description: Success
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            source_id:
+              type: number
+              description: Display ID of the source conversation (moved from)
+            target_id:
+              type: number
+              description: Display ID of the target conversation (moved to)
+            moved_count:
+              type: number
+              description: Number of messages moved from source to target
+  '401':
+    description: Unauthorized
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/bad_request_error'
+  '404':
+    description: Conversation not found
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/bad_request_error'
+  '422':
+    description: Unprocessable Entity (e.g., missing target_id or conversations not in the same inbox)
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/bad_request_error'

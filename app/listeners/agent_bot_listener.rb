@@ -1,18 +1,34 @@
 class AgentBotListener < BaseListener
+  def conversation_updated(event)
+    conversation = extract_conversation_and_account(event)[0]
+    inbox = conversation.inbox
+    agent_bots_for(inbox, conversation).each do |agent_bot|
+      integration_for(agent_bot).conversation_updated(conversation, event)
+    end
+  end
+
+  def conversation_created(event)
+    conversation = extract_conversation_and_account(event)[0]
+    inbox = conversation.inbox
+    agent_bots_for(inbox, conversation).each do |agent_bot|
+      integration_for(agent_bot).conversation_created(conversation, event)
+    end
+  end
+
   def conversation_resolved(event)
     conversation = extract_conversation_and_account(event)[0]
     inbox = conversation.inbox
-    event_name = __method__.to_s
-    payload = conversation.webhook_data.merge(event: event_name)
-    agent_bots_for(inbox, conversation).each { |agent_bot| process_webhook_bot_event(agent_bot, payload) }
+    agent_bots_for(inbox, conversation).each do |agent_bot|
+      integration_for(agent_bot).conversation_resolved(conversation, event)
+    end
   end
 
   def conversation_opened(event)
     conversation = extract_conversation_and_account(event)[0]
     inbox = conversation.inbox
-    event_name = __method__.to_s
-    payload = conversation.webhook_data.merge(event: event_name)
-    agent_bots_for(inbox, conversation).each { |agent_bot| process_webhook_bot_event(agent_bot, payload) }
+    agent_bots_for(inbox, conversation).each do |agent_bot|
+      integration_for(agent_bot).conversation_opened(conversation, event)
+    end
   end
 
   def message_created(event)
@@ -20,8 +36,9 @@ class AgentBotListener < BaseListener
     inbox = message.inbox
     return unless message.webhook_sendable?
 
-    method_name = __method__.to_s
-    agent_bots_for(inbox, message.conversation).each { |agent_bot| process_message_event(method_name, agent_bot, message, event) }
+    agent_bots_for(inbox, message.conversation).each do |agent_bot|
+      integration_for(agent_bot).message_created(message, event)
+    end
   end
 
   def message_updated(event)
@@ -29,17 +46,17 @@ class AgentBotListener < BaseListener
     inbox = message.inbox
     return unless message.webhook_sendable?
 
-    method_name = __method__.to_s
-    agent_bots_for(inbox, message.conversation).each { |agent_bot| process_message_event(method_name, agent_bot, message, event) }
+    agent_bots_for(inbox, message.conversation).each do |agent_bot|
+      integration_for(agent_bot).message_updated(message, event)
+    end
   end
 
   def webwidget_triggered(event)
     contact_inbox = event.data[:contact_inbox]
     inbox = contact_inbox.inbox
-    event_name = __method__.to_s
-    payload = contact_inbox.webhook_data.merge(event: event_name)
-    payload[:event_info] = event.data[:event_info]
-    agent_bots_for(inbox).each { |agent_bot| process_webhook_bot_event(agent_bot, payload) }
+    agent_bots_for(inbox).each do |agent_bot|
+      integration_for(agent_bot).webwidget_triggered(contact_inbox, event)
+    end
   end
 
   private
@@ -58,15 +75,16 @@ class AgentBotListener < BaseListener
     inbox.agent_bot
   end
 
-  def process_message_event(method_name, agent_bot, message, _event)
-    # Only webhook bots are supported
-    payload = message.webhook_data.merge(event: method_name)
-    process_webhook_bot_event(agent_bot, payload)
+  def integration_for(agent_bot)
+    if n8n_native_bot?(agent_bot)
+      AgentBots::Integrations::N8nIntegration.new(agent_bot)
+    else
+      AgentBots::Integrations::WebhookIntegration.new(agent_bot)
+    end
   end
 
-  def process_webhook_bot_event(agent_bot, payload)
-    return if agent_bot.outgoing_url.blank?
-
-    AgentBots::WebhookJob.perform_later(agent_bot.outgoing_url, payload)
+  def n8n_native_bot?(agent_bot)
+    flag = agent_bot&.bot_config&.dig('n8n_native')
+    ActiveRecord::Type::Boolean.new.cast(flag) == true
   end
 end

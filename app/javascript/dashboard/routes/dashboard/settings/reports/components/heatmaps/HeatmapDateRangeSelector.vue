@@ -52,12 +52,11 @@ const dayMenuItemConfigs = computed(() => [
   },
 ]);
 
-const resolvedLocale = computed(() => {
-  const currentLocale =
+const resolvedLocale = computed(
+  () =>
     locale.value ||
-    (typeof navigator !== 'undefined' ? navigator.language : 'en');
-  return currentLocale.replace('_', '-');
-});
+    (typeof navigator !== 'undefined' ? navigator.language : 'en')
+);
 
 const monthFormatter = computed(
   () =>

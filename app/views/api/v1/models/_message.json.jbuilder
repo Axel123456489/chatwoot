@@ -12,3 +12,10 @@ json.private message.private
 json.source_id message.source_id
 json.sender message.sender.push_event_data if message.sender
 json.attachments message.attachments.map(&:push_event_data) if message.attachments.present?
+
+# Include call information for voice_call content type
+if message.voice_call?
+  json.call_status message.call_status
+  json.call_duration message.call_duration
+  json.call_metadata message.call_metadata
+end

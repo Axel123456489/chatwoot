@@ -74,7 +74,7 @@ class LlmFormatter::ConversationLlmFormatter < LlmFormatter::DefaultLlmFormatter
                'Bot'
              end
     sender = "[Private Note] #{sender}" if message.private?
-    "#{sender}: #{message.content_for_llm}\n"
+    "#{sender}: #{message.content}\n"
   end
 
   def build_attributes

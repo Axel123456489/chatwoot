@@ -1,4 +1,6 @@
-class Captain::Copilot::ChatService < Llm::BaseAiService
+require 'openai'
+
+class Captain::Copilot::ChatService < Llm::BaseOpenAiService
   include Captain::ChatHelper
 
   attr_reader :assistant, :account, :user, :copilot_thread, :previous_history, :messages
@@ -11,11 +13,9 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     @user = nil
     @copilot_thread = nil
     @previous_history = []
-    @conversation_id = config[:conversation_id]
-
     setup_user(config)
     setup_message_history(config)
-    @tools = build_tools
+    register_tools
     @messages = build_messages(config)
   end
 
@@ -59,19 +59,16 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
                         end
   end
 
-  def build_tools
-    tools = []
-
-    tools << Captain::Tools::SearchDocumentationService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetConversationService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchConversationsService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetContactService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetArticleService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchArticlesService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchContactsService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchLinearIssuesService.new(@assistant, user: @user)
-
-    tools.select(&:active?)
+  def register_tools
+    @tool_registry = Captain::ToolRegistryService.new(@assistant, user: @user)
+    @tool_registry.register_tool(Captain::Tools::SearchDocumentationService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::GetArticleService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::GetContactService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::GetConversationService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::SearchArticlesService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::SearchContactsService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::SearchConversationsService)
+    @tool_registry.register_tool(Captain::Tools::Copilot::SearchLinearIssuesService)
   end
 
   def system_message
@@ -79,14 +76,10 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
       role: 'system',
       content: Captain::Llm::SystemPromptsService.copilot_response_generator(
         @assistant.config['product_name'],
-        tools_summary,
+        @tool_registry.tools_summary,
         @assistant.config
       )
     }
-  end
-
-  def tools_summary
-    @tools.map { |tool| "- #{tool.class.name}: #{tool.class.description}" }.join("\n")
   end
 
   def account_id_context
@@ -112,6 +105,10 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     }]
   end
 
+  def feature_name
+    'copilot_chat'
+  end
+
   def persist_message(message, message_type = 'assistant')
     return if @copilot_thread.blank?
 
@@ -119,9 +116,5 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
       message: message,
       message_type: message_type
     )
-  end
-
-  def feature_name
-    'copilot'
   end
 end

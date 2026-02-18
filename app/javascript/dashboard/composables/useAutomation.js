@@ -1,4 +1,4 @@
-import { ref, reactive, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useStoreGetters } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
@@ -16,6 +16,7 @@ import {
   // AUTOMATION_ACTION_TYPES,
   AUTOMATIONS,
 } from 'dashboard/routes/dashboard/settings/automation/constants.js';
+import { OPERATOR_TYPES_7 } from 'dashboard/routes/dashboard/settings/automation/operators';
 
 /**
  * Composable for handling automation-related functionality.
@@ -40,7 +41,7 @@ export function useAutomation(startValue = null) {
   } = useAutomationValues();
 
   const automation = ref(startValue);
-  const automationTypes = reactive(structuredClone(AUTOMATIONS));
+  const automationTypes = structuredClone(AUTOMATIONS);
   const eventName = computed(() => automation.value?.event_name);
 
   /**
@@ -160,25 +161,28 @@ export function useAutomation(startValue = null) {
       t('AUTOMATION.CONDITION.CONTACT_CUSTOM_ATTR_LABEL')
     );
 
-    const CUSTOM_ATTR_HEADER_KEYS = new Set([
-      'conversation_custom_attribute',
-      'contact_custom_attribute',
-    ]);
-
     [
       'message_created',
       'conversation_created',
       'conversation_updated',
       'conversation_opened',
     ].forEach(eventToUpdate => {
-      const standardConditions = automationTypes[
-        eventToUpdate
-      ].conditions.filter(
-        c => !c.customAttributeType && !CUSTOM_ATTR_HEADER_KEYS.has(c.key)
-      );
+      const attrsToAppend =
+        eventToUpdate === 'conversation_updated'
+          ? manifestedCustomAttributes.map(attr => ({
+              ...attr,
+              // For custom attributes on conversation_updated, allow attribute_changed for select-like inputs
+              filterOperators:
+                attr.inputType === 'search_select' ||
+                attr.inputType === 'multi_select'
+                  ? OPERATOR_TYPES_7
+                  : attr.filterOperators,
+            }))
+          : manifestedCustomAttributes;
+
       automationTypes[eventToUpdate].conditions = [
-        ...standardConditions,
-        ...manifestedCustomAttributes,
+        ...automationTypes[eventToUpdate].conditions,
+        ...attrsToAppend,
       ];
     });
   };

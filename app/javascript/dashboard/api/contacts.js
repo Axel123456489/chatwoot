@@ -53,6 +53,13 @@ class ContactAPI extends ApiClient {
     });
   }
 
+  initiateWhatsAppCall(contactId, inboxId, phoneNumber) {
+    return axios.post(`${this.url}/${contactId}/whatsapp_call`, {
+      inbox_id: inboxId,
+      phone_number: phoneNumber,
+    });
+  }
+
   updateContactLabels(contactId, labels) {
     return axios.post(`${this.url}/${contactId}/labels`, { labels });
   }

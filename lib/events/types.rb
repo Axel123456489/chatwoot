@@ -57,4 +57,7 @@ module Events::Types
 
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
+
+  # whatsapp calling events
+  WHATSAPP_OUTBOUND_CALL_INITIATED = 'whatsapp.outbound_call_initiated'
 end

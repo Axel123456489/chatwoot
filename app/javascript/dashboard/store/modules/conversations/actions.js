@@ -41,6 +41,12 @@ const actions = {
     }
   },
 
+  mergeConversationMessages: async ({ commit }, { sourceId, targetId }) => {
+    await ConversationApi.mergeMessages({ sourceId, targetId });
+    // Remove source conversation from state since it was deleted
+    commit(types.DELETE_CONVERSATION, sourceId);
+  },
+
   fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
     try {
@@ -155,7 +161,13 @@ const actions = {
       selectedChat.messages.push(...missingMessages);
       // Sort the messages by created_at
       const sortedMessages = selectedChat.messages.sort((a, b) => {
-        return new Date(a.created_at) - new Date(b.created_at);
+        const timeDiff = Number(a.created_at) - Number(b.created_at);
+        if (timeDiff !== 0) {
+          return timeDiff;
+        }
+
+        // Tie-breaker for messages created in the same second (e.g. status updates)
+        return Number(a.id) - Number(b.id);
       });
       commit(types.SET_MISSING_MESSAGES, {
         id: conversationId,
@@ -194,11 +206,27 @@ const actions = {
     commit(types.CLEAR_ALL_MESSAGES_LOADED, data.id);
     if (data.dataFetched === undefined) {
       try {
-        await dispatch('fetchPreviousMessages', {
-          after,
-          before: data.messages[0].id,
-          conversationId: data.id,
-        });
+        const earliestId = data?.messages?.[0]?.id;
+        if (after) {
+          if (earliestId) {
+            await dispatch('fetchPreviousMessages', {
+              after,
+              before: earliestId,
+              conversationId: data.id,
+            });
+          } else {
+            // No messages preloaded for this conversation; fetch older messages relative to messageId
+            await dispatch('fetchPreviousMessages', {
+              before: after,
+              conversationId: data.id,
+            });
+          }
+        } else if (earliestId) {
+          await dispatch('fetchPreviousMessages', {
+            before: earliestId,
+            conversationId: data.id,
+          });
+        }
         commit(types.SET_CHAT_DATA_FETCHED, data.id);
       } catch (error) {
         // Ignore error

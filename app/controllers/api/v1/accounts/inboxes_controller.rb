@@ -79,6 +79,22 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     render status: :internal_server_error, json: { error: e.message }
   end
 
+  def update_channel_settings
+    channel = @inbox.channel
+
+    unless channel.is_a?(Channel::Whatsapp)
+      return render json: { error: 'Only WhatsApp channels support this operation' }, status: :unprocessable_entity
+    end
+
+    if channel.update(channel_params)
+      # Reload inbox to get fresh data
+      @inbox.reload
+      render 'api/v1/accounts/inboxes/show'
+    else
+      render json: { error: channel.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
   def health
     health_data = Whatsapp::HealthService.new(@inbox.channel).fetch_health_status
     render json: health_data
@@ -152,22 +168,14 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def format_csat_config(config)
-    formatted = {
-      'display_type' => config['display_type'] || 'emoji',
-      'message' => config['message'] || '',
-      :survey_rules => {
-        'operator' => config.dig('survey_rules', 'operator') || 'contains',
-        'values' => config.dig('survey_rules', 'values') || []
-      },
-      'button_text' => config['button_text'] || 'Please rate us',
-      'language' => config['language'] || 'en'
+    {
+      display_type: config['display_type'] || 'emoji',
+      message: config['message'] || '',
+      survey_rules: {
+        operator: config.dig('survey_rules', 'operator') || 'contains',
+        values: config.dig('survey_rules', 'values') || []
+      }
     }
-    format_template_config(config, formatted)
-    formatted
-  end
-
-  def format_template_config(config, formatted)
-    formatted['template'] = config['template'] if config['template'].present?
   end
 
   def inbox_attributes
@@ -182,7 +190,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   def permitted_params(channel_attributes = [])
     # We will remove this line after fixing https://linear.app/chatwoot/issue/CW-1567/null-value-passed-as-null-string-to-backend
     params.each { |k, v| params[k] = params[k] == 'null' ? nil : v }
-    params.permit(*inbox_attributes, channel: [:type, *channel_attributes])
+
+    params.permit(
+      *inbox_attributes,
+      channel: [:type, *channel_attributes]
+    )
   end
 
   def channel_type_from_params
@@ -198,7 +210,33 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def get_channel_attributes(channel_type)
-    channel_type.constantize.const_defined?(:EDITABLE_ATTRS) ? channel_type.constantize::EDITABLE_ATTRS.presence : []
+    if channel_type.constantize.const_defined?(:EDITABLE_ATTRS)
+      channel_type.constantize::EDITABLE_ATTRS.presence
+    else
+      []
+    end
+  end
+
+  def channel_params
+    params.require(:channel).permit(
+      :calling_enabled,
+      calling_config: [
+        :media_server_url,
+        :media_server_api_secret,
+        :audio_codec,
+        :echo_cancellation,
+        :noise_suppression,
+        :auto_gain_control,
+        :recording_enabled,
+        :recording_path,
+        :recording_retention_days,
+        :recording_format,
+        :turn_username,
+        :turn_credential,
+        { stun_servers: [],
+          turn_servers: [] }
+      ]
+    )
   end
 
   def whatsapp_channel?

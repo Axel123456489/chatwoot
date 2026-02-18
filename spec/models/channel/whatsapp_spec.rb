@@ -32,16 +32,28 @@ RSpec.describe Channel::Whatsapp do
     let(:channel) { build(:channel_whatsapp, provider: 'whatsapp_cloud', account: create(:account)) }
 
     it 'validates false when provider config is wrong' do
-      stub_request(:get, 'https://graph.facebook.com/v14.0//message_templates?access_token=test_key').to_return(status: 401)
+      stub_request(:get, 'https://graph.facebook.com/v14.0/123456789/message_templates?access_token=test_key').to_return(status: 401)
+      stub_request(:get, 'https://graph.facebook.com/v22.0/123456789')
+        .to_return(status: 200, body: { data: [{ code_verification_status: 'VERIFIED' }] }.to_json)
+      stub_request(:post, 'https://graph.facebook.com/v22.0/123456789/register')
+        .to_return(status: 200, body: { data: { success: true } }.to_json)
+      stub_request(:post, 'https://graph.facebook.com/v22.0/123456789/subscribed_apps')
+        .to_return(status: 200, body: { success: true }.to_json)
       expect(channel.save).to be(false)
     end
 
     it 'validates true when provider config is right' do
-      stub_request(:get, 'https://graph.facebook.com/v14.0//message_templates?access_token=test_key')
+      stub_request(:get, 'https://graph.facebook.com/v14.0/123456789/message_templates?access_token=test_key')
         .to_return(status: 200,
                    body: { data: [{
                      id: '123456789', name: 'test_template'
                    }] }.to_json)
+      stub_request(:get, 'https://graph.facebook.com/v22.0/123456789')
+        .to_return(status: 200, body: { data: [{ code_verification_status: 'VERIFIED' }] }.to_json)
+      stub_request(:post, 'https://graph.facebook.com/v22.0/123456789/register')
+        .to_return(status: 200, body: { data: { success: true } }.to_json)
+      stub_request(:post, 'https://graph.facebook.com/v22.0/123456789/subscribed_apps')
+        .to_return(status: 200, body: { success: true }.to_json)
       expect(channel.save).to be(true)
     end
   end
@@ -206,6 +218,123 @@ RSpec.describe Channel::Whatsapp do
         channel.destroy
 
         expect(teardown_service).to have_received(:perform)
+      end
+    end
+  end
+
+  describe 'calling functionality' do
+    let(:account) { create(:account) }
+
+    context 'with calling enabled' do
+      let(:channel) do
+        create(:channel_whatsapp,
+               account: account,
+               provider: 'whatsapp_cloud',
+               provider_config: {
+                 'phone_number_id' => '123456789',
+                 'business_account_id' => 'test_waba',
+                 'api_key' => 'test_key'
+               },
+               calling_enabled: true,
+               calling_config: {
+                 'media_server_url' => 'https://media.example.com/webrtc',
+                 'stun_servers' => ['stun:stun.l.google.com:19302'],
+                 'audio_codec' => 'opus'
+               },
+               validate_provider_config: false,
+               sync_templates: false)
+      end
+
+      it 'returns true for calling_enabled?' do
+        expect(channel.calling_enabled?).to be true
+      end
+
+      it 'returns media_server_config' do
+        config = channel.media_server_config
+        expect(config['media_server_url']).to eq('https://media.example.com/webrtc')
+        expect(config['stun_servers']).to eq(['stun:stun.l.google.com:19302'])
+        expect(config['audio_codec']).to eq('opus')
+      end
+
+      it 'returns calling_credentials' do
+        credentials = channel.calling_credentials
+        expect(credentials[:phone_number_id]).to eq('123456789')
+        expect(credentials[:business_account_id]).to eq('test_waba')
+        expect(credentials[:api_key]).to eq('test_key')
+      end
+
+      it 'returns call_webhook_url' do
+        webhook_url = channel.call_webhook_url
+        expect(webhook_url).to include('/webhooks/whatsapp_calls')
+        expect(webhook_url).to include('123456789')
+      end
+    end
+
+    context 'with calling disabled' do
+      let(:channel) do
+        create(:channel_whatsapp,
+               account: account,
+               provider: 'whatsapp_cloud',
+               provider_config: {
+                 'phone_number_id' => '123456789',
+                 'business_account_id' => 'test_waba',
+                 'api_key' => 'test_key'
+               },
+               calling_enabled: false,
+               validate_provider_config: false,
+               sync_templates: false)
+      end
+
+      it 'returns false for calling_enabled?' do
+        expect(channel.calling_enabled?).to be false
+      end
+
+      it 'returns empty hash for media_server_config' do
+        expect(channel.media_server_config).to eq({})
+      end
+    end
+
+    context 'with default provider (360dialog)' do
+      let(:channel) do
+        create(:channel_whatsapp,
+               account: account,
+               provider: 'default',
+               calling_enabled: true,
+               calling_config: {
+                 'media_server_url' => 'https://media.example.com/webrtc'
+               },
+               validate_provider_config: false,
+               sync_templates: false)
+      end
+
+      it 'returns false for calling_enabled? (only whatsapp_cloud supported)' do
+        expect(channel.calling_enabled?).to be false
+      end
+    end
+
+    context 'without phone_number_id' do
+      let(:channel) do
+        create(:channel_whatsapp,
+               account: account,
+               provider: 'whatsapp_cloud',
+               provider_config: {
+                 'business_account_id' => 'test_waba',
+                 'api_key' => 'test_key'
+               },
+               calling_enabled: true,
+               calling_config: {
+                 'media_server_url' => 'https://media.example.com/webrtc'
+               },
+               validate_provider_config: false,
+               sync_templates: false)
+      end
+
+      it 'returns false for calling_enabled?' do
+        expect(channel.calling_enabled?).to be false
+      end
+
+      it 'returns nil for call_webhook_url' do
+        expect(channel.call_webhook_url).to be_nil
       end
     end
   end

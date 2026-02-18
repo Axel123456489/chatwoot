@@ -15,7 +15,10 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   end
 
   def update
+    raw_bot_config = permitted_params[:bot_config]
+    Rails.logger.info("[AgentBotUpdate] Params bot_config raw=#{raw_bot_config.inspect}")
     @agent_bot.update!(permitted_params.except(:avatar_url))
+    Rails.logger.info("[AgentBotUpdate] Persisted bot_config=#{@agent_bot.bot_config.inspect}")
     process_avatar_from_url
   end
 

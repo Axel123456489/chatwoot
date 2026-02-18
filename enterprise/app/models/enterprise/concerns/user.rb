@@ -11,6 +11,11 @@ module Enterprise::Concerns::User
   def ensure_installation_pricing_plan_quantity
     return unless ChatwootHub.pricing_plan == 'premium'
 
-    errors.add(:base, 'User limit reached. Please purchase more licenses from super admin') if User.count >= ChatwootHub.pricing_plan_quantity
+    limit = ChatwootHub.pricing_plan_quantity.to_i
+    return if limit.zero?
+
+    return unless User.count >= limit
+
+    errors.add(:base, 'User limit reached. Please purchase more licenses from super admin')
   end
 end

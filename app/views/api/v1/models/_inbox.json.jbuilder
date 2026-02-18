@@ -116,6 +116,17 @@ if resource.api?
   json.webhook_url resource.channel.try(:webhook_url)
   json.inbox_identifier resource.channel.try(:identifier)
   json.additional_attributes resource.channel.try(:additional_attributes)
+
+  # WAHA Session info (if this API channel is linked to WAHA)
+  if resource.waha_session.present?
+    json.waha_session do
+      json.id resource.waha_session.id
+      json.session_name resource.waha_session.session_name
+      json.status resource.waha_session.status
+      json.phone_number resource.waha_session.phone_number
+      json.connected resource.waha_session.connected?
+    end
+  end
 end
 
 json.provider resource.channel.try(:provider)
@@ -128,6 +139,8 @@ if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
   json.reauthorization_required resource.channel.try(:reauthorization_required?)
+  json.calling_enabled resource.channel.try(:calling_enabled?)
+  json.calling_config resource.channel.try(:calling_config)
 end
 
 ## Voice Channel Attributes

@@ -50,6 +50,7 @@ class AccountSamlSettings < ApplicationRecord
 
   def set_sp_entity_id
     base_url = GlobalConfigService.load('FRONTEND_URL', 'http://localhost:3000')
+    base_url = 'http://localhost:3000' if base_url.include?('0.0.0.0')
     self.sp_entity_id = "#{base_url}/saml/sp/#{account_id}"
   end
 

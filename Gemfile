@@ -115,6 +115,10 @@ gem 'grpc'
 # 'google-cloud-translate' gem depends on faraday 2.0 version
 # this dependency breaks the slack-ruby-client gem
 gem 'google-cloud-translate-v3', '>= 0.7.0'
+# WhatsApp Business API calling (P2P WebRTC)
+gem 'websocket-client-simple', '~> 0.8.0'
+# State machine for call management
+gem 'aasm', '~> 5.5'
 
 ##-- apm and error monitoring ---#
 # loaded only when environment variables are set.
@@ -162,7 +166,7 @@ gem 'working_hours'
 gem 'pg_search'
 
 # Subscriptions, Billing
-gem 'stripe', '~> 18.0'
+gem 'stripe'
 
 ## - helper gems --##
 ## to populate db with sample data
@@ -191,10 +195,9 @@ gem 'reverse_markdown'
 
 gem 'iso-639'
 gem 'ruby-openai'
-gem 'ai-agents'
+gem 'ai-agents', '>= 0.4.3'
 
 # TODO: Move this gem as a dependency of ai-agents
-gem 'ruby_llm', '>= 1.8.2'
 gem 'ruby_llm-schema'
 
 gem 'cld3', '~> 3.7'
@@ -217,7 +220,7 @@ group :production do
 end
 
 group :development do
-  gem 'annotaterb'
+  gem 'annotate'
   gem 'bullet'
   gem 'letter_opener'
   gem 'scss_lint', require: false

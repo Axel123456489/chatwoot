@@ -41,6 +41,8 @@ module Chatwoot
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
     config.eager_load_paths << Rails.root.join('enterprise/listeners')
+    # Ensure enterprise code is autoloaded in dev/test and eager-loaded in production
+    config.autoload_paths << Rails.root.join('enterprise/app')
     # rubocop:disable Rails/FilePath
     config.eager_load_paths += Dir["#{Rails.root}/enterprise/app/**"]
     # rubocop:enable Rails/FilePath

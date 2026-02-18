@@ -77,6 +77,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    showEditorToggle: {
+      type: Boolean,
+      default: false,
+    },
     isOnPrivateNote: {
       type: Boolean,
       default: false,
@@ -122,19 +126,16 @@ export default {
       type: Boolean,
       default: false,
     },
-    isEditorDisabled: {
-      type: Boolean,
-      default: false,
-    },
   },
   emits: [
     'replaceText',
     'toggleInsertArticle',
+    'toggleEditor',
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
   ],
-  setup(props) {
+  setup() {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
       useUISettings();
 
@@ -143,9 +144,6 @@ export default {
     const keyboardEvents = {
       '$mod+Alt+KeyA': {
         action: () => {
-          // Skip if editor is disabled (e.g., WhatsApp 24-hour window expired)
-          if (props.isEditorDisabled) return;
-
           // TODO: This is really hacky, we need to replace the file picker component with
           // a custom one, where the logic and the component markup is isolated.
           // Once we have the custom component, we can remove the hacky logic below.
@@ -153,7 +151,7 @@ export default {
           const uploadTriggerButton = document.querySelector(
             '#conversationAttachment'
           );
-          if (uploadTriggerButton) uploadTriggerButton.click();
+          uploadTriggerButton.click();
         },
         allowOnFocusedInput: true,
       },
@@ -184,11 +182,9 @@ export default {
       };
     },
     showAttachButton() {
-      if (this.isEditorDisabled) return false;
       return this.showFileUpload || this.isNote;
     },
     showAudioRecorderButton() {
-      if (this.isEditorDisabled) return false;
       if (this.isALineChannel) {
         return false;
       }
@@ -206,7 +202,6 @@ export default {
       );
     },
     showAudioPlayStopButton() {
-      if (this.isEditorDisabled) return false;
       return this.showAudioRecorder && this.isRecordingAudio;
     },
     isInstagramDM() {
@@ -246,7 +241,6 @@ export default {
       }
     },
     showMessageSignatureButton() {
-      if (this.isEditorDisabled) return false;
       return !this.isOnPrivateNote;
     },
     sendWithSignature() {
@@ -291,7 +285,6 @@ export default {
   <div class="flex justify-between p-3" :class="wrapClass">
     <div class="left-wrap">
       <NextButton
-        v-if="!isEditorDisabled"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
         icon="i-ph-smiley-sticker"
         slate
@@ -300,7 +293,6 @@ export default {
         @click="toggleEmojiPicker"
       />
       <FileUpload
-        v-if="showAttachButton"
         ref="uploadRef"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
         input-id="conversationAttachment"
@@ -334,7 +326,17 @@ export default {
         @click="toggleAudioRecorder"
       />
       <NextButton
+        v-if="showEditorToggle"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_FORMAT_ICON')"
+        icon="i-ph-quotes"
+        slate
+        faded
+        sm
+        @click="$emit('toggleEditor')"
+      />
+      <NextButton
         v-if="showAudioPlayStopButton"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_FORMAT_ICON')"
         :icon="audioRecorderPlayStopIcon"
         slate
         faded

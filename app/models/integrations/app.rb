@@ -53,13 +53,15 @@ class Integrations::App
     when 'slack'
       GlobalConfigService.load('SLACK_CLIENT_SECRET', nil).present?
     when 'linear'
-      account.feature_enabled?('linear_integration') && GlobalConfigService.load('LINEAR_CLIENT_ID', nil).present?
+      GlobalConfigService.load('LINEAR_CLIENT_ID', nil).present?
     when 'shopify'
       shopify_enabled?(account)
     when 'leadsquared'
       account.feature_enabled?('crm_integration')
     when 'notion'
       notion_enabled?(account)
+    when 'waha'
+      account.feature_enabled?('waha_integration')
     else
       true
     end

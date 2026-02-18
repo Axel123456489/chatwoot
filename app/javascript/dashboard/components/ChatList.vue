@@ -61,6 +61,7 @@ import { conversationListPageURL } from '../helper/URLHelper';
 import {
   isOnMentionsView,
   isOnUnattendedView,
+  isOnChatbotView,
 } from '../store/modules/conversations/helpers/actionHelpers';
 import {
   getUserPermissions,
@@ -97,6 +98,47 @@ provide('contextMenuElementTarget', conversationDynamicScroller);
 
 const activeAssigneeTab = ref(wootConstants.ASSIGNEE_TYPE.ME);
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
+
+let forcedChatbotAssignee = false;
+let forcedChatbotStatus = false;
+
+const applyChatbotDefaults = () => {
+  if (activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ME) {
+    activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ALL;
+    forcedChatbotAssignee = true;
+  } else {
+    forcedChatbotAssignee = false;
+  }
+
+  if (activeStatus.value !== wootConstants.STATUS_TYPE.PENDING) {
+    activeStatus.value = wootConstants.STATUS_TYPE.PENDING;
+    forcedChatbotStatus = true;
+    store.dispatch('setChatStatusFilter', activeStatus.value);
+  } else {
+    forcedChatbotStatus = false;
+  }
+};
+
+const resetChatbotDefaults = () => {
+  if (forcedChatbotAssignee) {
+    activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ME;
+  }
+
+  if (
+    forcedChatbotStatus &&
+    activeStatus.value === wootConstants.STATUS_TYPE.PENDING
+  ) {
+    activeStatus.value = wootConstants.STATUS_TYPE.OPEN;
+    store.dispatch('setChatStatusFilter', activeStatus.value);
+  }
+
+  forcedChatbotAssignee = false;
+  forcedChatbotStatus = false;
+};
+
+if (props.conversationType === 'chatbot') {
+  applyChatbotDefaults();
+}
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
 // chatsOnView is to store the chats that are currently visible on the screen,
@@ -145,7 +187,6 @@ const {
   isConversationSelected,
   onAssignAgent,
   onAssignLabels,
-  onRemoveLabels,
   onAssignTeamsForBulk,
   onUpdateConversations,
 } = useBulkActions();
@@ -316,6 +357,9 @@ const pageTitle = computed(() => {
   }
   if (props.conversationType === 'unattended') {
     return t('CHAT_LIST.UNATTENDED_HEADING');
+  }
+  if (props.conversationType === 'chatbot') {
+    return t('CHAT_LIST.CHATBOT_HEADING');
   }
   if (hasActiveFolders.value) {
     return activeFolder.value.name;
@@ -667,6 +711,8 @@ function redirectToConversationList() {
     conversationType = 'mention';
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = 'unattended';
+  } else if (isOnChatbotView({ route: { name } })) {
+    conversationType = 'chatbot';
   }
   router.push(
     conversationListPageURL({
@@ -718,6 +764,20 @@ async function markAsRead(conversationId) {
     // Ignore error
   }
 }
+
+// Simple throttle implementation - max once per 5 seconds per conversation
+const lastMarkAsReadTimes = new Map(); // conversationId -> timestamp
+const throttledMarkAsRead = conversationId => {
+  const now = Date.now();
+  const lastTime = lastMarkAsReadTimes.get(conversationId) || 0;
+
+  if (now - lastTime < 5000) {
+    return; // Skip if called within last 5 seconds for this conversation
+  }
+
+  lastMarkAsReadTimes.set(conversationId, now);
+  markAsRead(conversationId);
+};
 
 async function onAssignTeam(team, conversationId = null) {
   try {
@@ -860,11 +920,10 @@ provide('deSelectConversation', deSelectConversation);
 provide('assignAgent', onAssignAgent);
 provide('assignTeam', onAssignTeam);
 provide('assignLabels', onAssignLabels);
-provide('removeLabels', onRemoveLabels);
 provide('updateConversationStatus', handleResolveConversation);
 provide('toggleContextMenu', onContextMenuToggle);
 provide('markAsUnread', markAsUnread);
-provide('markAsRead', markAsRead);
+provide('markAsRead', throttledMarkAsRead); // Use throttled version
 provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
@@ -880,8 +939,15 @@ watch(
   () => resetAndFetchData()
 );
 watch(
-  computed(() => props.conversationType),
-  () => resetAndFetchData()
+  () => props.conversationType,
+  newType => {
+    if (newType === 'chatbot') {
+      applyChatbotDefaults();
+    } else {
+      resetChatbotDefaults();
+    }
+    resetAndFetchData();
+  }
 );
 
 watch(activeFolder, (newVal, oldVal) => {

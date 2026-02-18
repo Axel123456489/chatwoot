@@ -1,6 +1,6 @@
 class Captain::Tools::Copilot::SearchConversationsService < Captain::Tools::BaseTool
   def self.name
-    'search_conversation'
+    'search_conversations'
   end
   description 'Search conversations based on parameters'
 
@@ -9,7 +9,29 @@ class Captain::Tools::Copilot::SearchConversationsService < Captain::Tools::Base
   param :priority, type: :string, desc: 'Priority of conversation (low, medium, high, urgent). Leave empty to search all priorities.'
   param :labels, type: :string, desc: 'Labels available'
 
-  def execute(status: nil, contact_id: nil, priority: nil, labels: nil)
+  def name
+    self.class.name
+  end
+
+  def parameters
+    {
+      type: 'object',
+      properties: {
+        contact_id: { type: 'number' },
+        status: { type: 'string', enum: Conversation.statuses.keys },
+        priority: { type: 'string', enum: Conversation.priorities.keys },
+        labels: { type: 'string' }
+      }
+    }
+  end
+
+  def execute(filters = nil, status: nil, contact_id: nil, priority: nil, labels: nil)
+    params = (filters || {}).with_indifferent_access
+    status ||= params[:status]
+    contact_id ||= params[:contact_id]
+    priority ||= params[:priority]
+    labels ||= params[:labels]
+
     conversations = get_conversations(status, contact_id, priority, labels)
 
     return 'No conversations found' unless conversations.exists?

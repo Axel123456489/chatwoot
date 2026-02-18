@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { useMapGetter } from 'dashboard/composables/store';
+import { useMapGetter, useStore } from 'dashboard/composables/store';
 
 import { useAccount } from 'dashboard/composables/useAccount';
 
@@ -11,10 +11,35 @@ import ChannelItem from 'dashboard/components/widgets/ChannelItem.vue';
 const { t } = useI18n();
 const router = useRouter();
 const { accountId, currentAccount } = useAccount();
+const store = useStore();
 
 const globalConfig = useMapGetter('globalConfig/get');
 
+const wahaIntegration = computed(() => {
+  const getter = store.getters['integrations/getIntegration'];
+  const value = typeof getter === 'function' ? getter('waha') : {};
+  return value;
+});
 const enabledFeatures = ref({});
+const hasWahaFeature = computed(
+  () => enabledFeatures.value?.waha_integration === true
+);
+
+const wahaReady = computed(() => {
+  const integration = wahaIntegration.value;
+  const hook = integration?.hooks?.[0];
+
+  return (
+    hasWahaFeature.value === true &&
+    integration?.enabled === true &&
+    hook?.settings?.base_url?.length > 0 &&
+    hook?.settings?.api_key?.length > 0
+  );
+});
+
+const integrationLoading = computed(
+  () => store.getters['integrations/getUIFlags']?.isFetching
+);
 
 const hasTiktokConfigured = computed(() => {
   return window.chatwootConfig?.tiktokAppId;
@@ -22,6 +47,7 @@ const hasTiktokConfigured = computed(() => {
 
 const channelList = computed(() => {
   const { apiChannelName } = globalConfig.value;
+
   const channels = [
     {
       key: 'website',
@@ -88,6 +114,16 @@ const channelList = computed(() => {
     });
   }
 
+  if (hasWahaFeature.value) {
+    channels.push({
+      key: 'waha',
+      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WAHA.TITLE'),
+      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WAHA.DESCRIPTION'),
+      icon: 'i-woot-whatsapp',
+      enabled: wahaReady.value,
+    });
+  }
+
   channels.push({
     key: 'voice',
     title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.VOICE.TITLE'),
@@ -112,11 +148,15 @@ const initChannelAuth = channel => {
 
 onMounted(() => {
   initializeEnabledFeatures();
+  store.dispatch('integrations/get');
 });
 </script>
 
 <template>
   <div class="w-full p-8 overflow-auto">
+    <div v-if="integrationLoading" class="mb-4 text-sm text-gray-600">
+      {{ $t('INBOX_MGMT.ADD.WAHA.CHECKING_INTEGRATION') }}
+    </div>
     <div
       class="grid max-w-3xl grid-cols-1 xs:grid-cols-2 mx-0 gap-6 sm:grid-cols-3"
     >
@@ -125,6 +165,7 @@ onMounted(() => {
         :key="channel.key"
         :channel="channel"
         :enabled-features="enabledFeatures"
+        :waha-enabled="channel.enabled ?? true"
         @channel-item-click="initChannelAuth"
       />
     </div>

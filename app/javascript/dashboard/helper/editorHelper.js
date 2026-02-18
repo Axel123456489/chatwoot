@@ -5,9 +5,8 @@ import {
 } from '@chatwoot/prosemirror-schema';
 import { replaceVariablesInMessage } from '@chatwoot/utils';
 import * as Sentry from '@sentry/vue';
-import { FORMATTING, MARKDOWN_PATTERNS } from 'dashboard/constants/editor';
 import { INBOX_TYPES, TWILIO_CHANNEL_MEDIUM } from 'dashboard/helper/inbox';
-import camelcaseKeys from 'camelcase-keys';
+import { FORMATTING, MARKDOWN_PATTERNS } from 'dashboard/constants/editor';
 
 /**
  * Extract text from markdown, and remove all images, code blocks, links, headers, bold, italic, lists etc.
@@ -79,6 +78,23 @@ export function stripUnsupportedMarkdown(
 export const SIGNATURE_DELIMITER = '--';
 
 /**
+ * Get the effective channel type for signature handling.
+ * For Twilio channels, determine if it's WhatsApp or SMS based on medium.
+ *
+ * @param {string} channelType - The channel type from the inbox.
+ * @param {string} medium - The medium for Twilio channels (e.g., 'whatsapp', 'sms').
+ * @returns {string} - The effective channel type.
+ */
+export function getEffectiveChannelType(channelType, medium) {
+  if (channelType === INBOX_TYPES.TWILIO) {
+    return medium === TWILIO_CHANNEL_MEDIUM.WHATSAPP
+      ? INBOX_TYPES.WHATSAPP
+      : INBOX_TYPES.TWILIO;
+  }
+  return channelType;
+}
+
+/**
  * Parse and Serialize the markdown text to remove any extra spaces or new lines
  */
 export function cleanSignature(signature) {
@@ -134,30 +150,10 @@ export function findSignatureInBody(body, signature) {
 }
 
 /**
- * Gets the effective channel type for formatting purposes.
- * For Twilio channels, returns WhatsApp or Twilio based on medium.
- *
- * @param {string} channelType - The channel type
- * @param {string} medium - Optional. The medium for Twilio channels (sms/whatsapp)
- * @returns {string} - The effective channel type for formatting
- */
-export function getEffectiveChannelType(channelType, medium) {
-  if (channelType === INBOX_TYPES.TWILIO) {
-    return medium === TWILIO_CHANNEL_MEDIUM.WHATSAPP
-      ? INBOX_TYPES.WHATSAPP
-      : INBOX_TYPES.TWILIO;
-  }
-  return channelType;
-}
-
-/**
  * Appends the signature to the body, separated by the signature delimiter.
- * Automatically strips unsupported formatting based on channel capabilities.
  *
  * @param {string} body - The body to append the signature to.
  * @param {string} signature - The signature to append.
- * @param {string} channelType - Optional. The effective channel type to determine supported formatting.
- *                               For Twilio channels, pass the result of getEffectiveChannelType().
  * @returns {string} - The body with the signature appended.
  */
 export function appendSignature(body, signature, channelType) {
@@ -276,13 +272,20 @@ export function insertAtCursor(editorView, node, from, to) {
     node.childCount === 1 &&
     node.firstChild.type.name === 'paragraph';
 
-  if (isWrappedInParagraph) {
-    node = node.firstChild.content;
-  }
-
   let tr;
   if (to) {
-    tr = editorView.state.tr.replaceWith(from, to, node).insertText(` `);
+    if (isWrappedInParagraph) {
+      // Fragment from paragraph: extract text content and create a text node
+      // (replaceWith does not handle Fragments reliably across ProseMirror versions)
+      let textContent = '';
+      node.firstChild.content.forEach(child => {
+        textContent += child.textContent || child.text || '';
+      });
+      const textNode = editorView.state.schema.text(textContent);
+      tr = editorView.state.tr.replaceWith(from, to, textNode).insertText(` `);
+    } else {
+      tr = editorView.state.tr.replaceWith(from, to, node).insertText(` `);
+    }
   } else {
     tr = editorView.state.tr.insert(from, node);
   }
@@ -360,47 +363,6 @@ export function setURLWithQueryAndSize(selectedImageNode, size, editorView) {
 }
 
 /**
- * Strips unsupported markdown formatting from content based on the editor schema.
- * This ensures canned responses with rich formatting can be inserted into channels
- * that don't support certain formatting (e.g., API channels don't support bold).
- *
- * @param {string} content - The markdown content to sanitize
- * @param {Object} schema - The ProseMirror schema with supported marks and nodes
- * @returns {string} - Content with unsupported formatting stripped
- */
-export function stripUnsupportedFormatting(content, schema) {
-  if (!content || typeof content !== 'string') return content;
-  if (!schema) return content;
-
-  let sanitizedContent = content;
-
-  // Get supported marks and nodes from the schema
-  // Note: ProseMirror uses snake_case internally (code_block, bullet_list, etc.)
-  // but our FORMATTING constant uses camelCase (codeBlock, bulletList, etc.)
-  // We use camelcase-keys to normalize node names for comparison
-  const supportedMarks = Object.keys(schema.marks || {});
-  const nodeKeys = Object.keys(schema.nodes || {});
-  const nodeKeysObj = Object.fromEntries(nodeKeys.map(k => [k, true]));
-  const supportedNodes = Object.keys(camelcaseKeys(nodeKeysObj));
-
-  // Process each formatting type in order (codeBlock before code is important!)
-  MARKDOWN_PATTERNS.forEach(({ type, patterns }) => {
-    // Check if this format type is supported by the schema
-    const isMarkSupported = supportedMarks.includes(type);
-    const isNodeSupported = supportedNodes.includes(type);
-
-    // If not supported, strip the formatting
-    if (!isMarkSupported && !isNodeSupported) {
-      patterns.forEach(({ pattern, replacement }) => {
-        sanitizedContent = sanitizedContent.replace(pattern, replacement);
-      });
-    }
-  });
-
-  return sanitizedContent;
-}
-
-/**
  * Content Node Creation Helper Functions for
  * - mention
  * - canned response
@@ -430,17 +392,8 @@ const createNode = (editorView, nodeType, content) => {
 
       return mentionNode;
     }
-    case 'cannedResponse': {
-      // Strip unsupported formatting before parsing to ensure content can be inserted
-      // into channels that don't support certain markdown features (e.g., API channels)
-      const sanitizedContent = stripUnsupportedFormatting(
-        content,
-        state.schema
-      );
-      return new MessageMarkdownTransformer(state.schema).parse(
-        sanitizedContent
-      );
-    }
+    case 'cannedResponse':
+      return new MessageMarkdownTransformer(messageSchema).parse(content);
     case 'variable':
       return state.schema.text(`{{${content}}}`);
     case 'emoji':
@@ -540,6 +493,38 @@ export function getFormattingForEditor(channelType, showCaptain = false) {
       ? formatting.menu
       : formatting.menu.filter(item => item !== 'copilot'),
   };
+}
+
+/**
+ * Strip unsupported marks and nodes from content based on the provided schema.
+ * Falls back to returning the original content when schema is absent.
+ *
+ * @param {string} content - Markdown content to clean.
+ * @param {Object} schema - Prosemirror schema-like object with marks and nodes maps.
+ * @returns {string|undefined|null} Cleaned content.
+ */
+export function stripUnsupportedFormatting(content, schema) {
+  if (content === '' || content === null || content === undefined) {
+    return content;
+  }
+
+  if (!schema) {
+    return content;
+  }
+
+  const marks = Object.keys(schema.marks || {});
+  const nodes = Object.keys(schema.nodes || {});
+  const supported = new Set([...marks, ...nodes]);
+
+  return MARKDOWN_PATTERNS.reduce((text, { type, patterns }) => {
+    if (supported.has(type)) return text;
+
+    return patterns.reduce(
+      (updatedText, { pattern, replacement }) =>
+        updatedText.replace(pattern, replacement),
+      text
+    );
+  }, content);
 }
 
 /**

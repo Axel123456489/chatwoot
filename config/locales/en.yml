@@ -41,7 +41,8 @@ en:
       invalid_email: 'Please enter a valid email address'
       authentication_failed: 'Authentication failed. Please check your credentials and try again.'
   messages:
-    reset_password: Request for password reset is successful. A email with instructions will be sent to your email if it exists.
+    reset_password_success: Woot! Request for password reset is successful. Check your mail for instructions.
+    reset_password_failure: Uh ho! We could not find any user with the specified email.
     reset_password_saml_user: This account uses SAML authentication. Password reset is not available. Please contact your administrator.
     login_saml_user: This account uses SAML authentication. Please sign in through your organization's SAML provider.
     saml_not_available: SAML authentication is not available in this installation.
@@ -219,8 +220,6 @@ en:
     messages:
       instagram_story_content: '%{story_sender} mentioned you in the story: '
       instagram_deleted_story_content: This story is no longer available.
-      instagram_shared_story_content: 'Shared story'
-      instagram_shared_post_content: 'Shared post'
       deleted: This message was deleted
       whatsapp:
         list_button_label: 'Choose an item'
@@ -336,6 +335,10 @@ en:
       name: 'Shopify'
       short_description: 'Access order details and customer data from your Shopify store.'
       description: 'Connect your Shopify store to access order details, customer information, and product data directly within your conversations and helps your support team provide faster, more contextual assistance to your customers.'
+    waha:
+      name: 'WAHA WhatsApp'
+      short_description: 'Connect WhatsApp using WAHA (WhatsApp HTTP API) self-hosted server.'
+      description: 'WAHA (WhatsApp HTTP API) integration allows you to connect your WhatsApp account using a self-hosted WAHA server. Create WhatsApp inboxes by scanning a QR code and manage multiple WhatsApp sessions from your Chatwoot dashboard.'
     leadsquared:
       name: 'LeadSquared'
       short_description: 'Sync your contacts and conversations with LeadSquared CRM.'

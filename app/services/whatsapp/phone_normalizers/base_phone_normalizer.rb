@@ -4,7 +4,7 @@
 # - normalize: logic to convert phone number to normalized format for contact lookup
 class Whatsapp::PhoneNormalizers::BasePhoneNormalizer
   def handles_country?(waid)
-    waid.match(country_code_pattern)
+    waid.match?(country_code_pattern)
   end
 
   def normalize(waid)

@@ -104,6 +104,14 @@
           "ERROR": "Failed to update audio transcription setting"
         }
       },
+      "CONVERSATION_ACCESS": {
+        "TITLE": "Allow access to all conversations",
+        "NOTE": "When enabled, agents can open conversations even if they are not assigned to them or part of the inbox team.",
+        "API": {
+          "SUCCESS": "Conversation access preference updated successfully",
+          "ERROR": "Failed to update conversation access preference"
+        }
+      },
       "AUTO_RESOLVE_DURATION": {
         "LABEL": "Inactivity duration for resolution",
         "HELP": "Duration after a conversation should auto resolve if there is no activity",

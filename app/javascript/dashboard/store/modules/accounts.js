@@ -18,7 +18,6 @@ const state = {
     isFetchingItem: false,
     isUpdating: false,
     isCheckoutInProcess: false,
-    isFetchingLimits: false,
   },
 };
 
@@ -142,14 +141,11 @@ export const actions = {
   },
 
   limits: async ({ commit }) => {
-    commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingLimits: true });
     try {
       const response = await EnterpriseAccountAPI.getLimits();
       commit(types.default.SET_ACCOUNT_LIMITS, response.data);
     } catch (error) {
       // silent error
-    } finally {
-      commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingLimits: false });
     }
   },
 

@@ -103,6 +103,20 @@ Rails.application.routes.draw do
             end
           end
           resources :canned_responses, only: [:index, :create, :update, :destroy]
+          
+          # Storage management
+          get 'storage/analyze', to: 'storage#analyze'
+          get 'storage/duplicates', to: 'storage#duplicates'
+          get 'storage/largest_files', to: 'storage#largest_files'
+          post 'storage/cleanup_orphans', to: 'storage#cleanup_orphans'
+          post 'storage/deduplicate', to: 'storage#deduplicate'
+          
+          resources :templates, only: [:index, :show] do
+            collection do
+              get :inboxes
+              post :create_template
+            end
+          end
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
             post :clone
           end
@@ -119,6 +133,20 @@ Rails.application.routes.draw do
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
+
+          # WAHA Sessions - orchestrates WAHA + API Channel for WhatsApp
+          resources :waha_sessions, only: [:index, :create, :show, :update, :destroy] do
+            member do
+              get :status
+              get :qr_code
+              post :restart
+              post :logout
+              post :recreate_app
+              patch :update_config
+              post :sync_config
+            end
+          end
+
           namespace :channels do
             resource :twilio_channel, only: [:create]
           end
@@ -133,6 +161,9 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
+                end
+                scope module: :messages do
+                  resources :reactions, only: [:create, :destroy]
                 end
               end
               resources :assignments, only: [:create]
@@ -153,6 +184,8 @@ Rails.application.routes.draw do
               post :custom_attributes
               get :attachments
               get :inbox_assistant
+              post :merge_messages
+              post :whatsapp_call_recording
               get :reporting_events if ChatwootApp.enterprise?
             end
           end
@@ -190,6 +223,7 @@ Rails.application.routes.draw do
               resources :labels, only: [:create, :index]
               resources :notes
               post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
+              post :whatsapp_call, on: :member, to: 'whatsapp_calls#create'
             end
           end
           resources :csat_survey_responses, only: [:index] do
@@ -217,7 +251,19 @@ Rails.application.routes.draw do
             post :set_agent_bot, on: :member
             delete :avatar, on: :member
             post :sync_templates, on: :member
+            patch :update_channel_settings, on: :member
             get :health, on: :member
+            if ChatwootApp.enterprise?
+              resource :conference, only: %i[create destroy], controller: 'conference' do
+                get :token, on: :member
+              end
+            end
+
+            resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates'
+
+            scope module: :inboxes do
+              resources :message_templates, only: [:destroy, :update]
+            end
             if ChatwootApp.enterprise?
               resource :conference, only: %i[create destroy], controller: 'conference' do
                 get :token, on: :member
@@ -292,6 +338,23 @@ Rails.application.routes.draw do
 
           namespace :whatsapp do
             resource :authorization, only: [:create]
+            resources :calls, only: [:create] do
+              collection do
+                post :terminate
+                post :setup_webrtc
+                post :trickle
+                post :answer
+                post 'permissions', to: 'calls#request_permission'
+                get 'permissions', to: 'calls#check_permission'
+                get :history
+                get :analytics
+                post :recording_upload
+              end
+              member do
+                post :accept
+                post :reject
+              end
+            end
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
@@ -360,6 +423,7 @@ Rails.application.routes.draw do
 
       namespace :integrations do
         resources :webhooks, only: [:create]
+        post 'n8n/switch_flow', to: 'integrations/n8n#switch_flow'
       end
 
       # Frontend API endpoint to trigger SAML authentication flow
@@ -471,7 +535,6 @@ Rails.application.routes.draw do
               post :subscription
               get :limits
               post :toggle_deletion
-              post :topup_checkout
             end
           end
         end
@@ -529,6 +592,11 @@ Rails.application.routes.draw do
         end
 
         resources :csat_survey, only: [:show, :update]
+        namespace :integrations do
+          post 'n8n/automation/:id', to: 'n8n#automation'
+          post 'n8n/restart', to: 'n8n#restart'
+          post 'n8n/switch_flow', to: 'n8n#switch_flow'
+        end
       end
     end
   end
@@ -561,10 +629,16 @@ Rails.application.routes.draw do
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
   get 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#process_payload'
+  # WhatsApp Calling API webhooks
+  get 'webhooks/whatsapp_calls/:phone_number_id', to: 'webhooks/whatsapp_calls#verify', as: :whatsapp_calls_webhook
+  post 'webhooks/whatsapp_calls/:phone_number_id', to: 'webhooks/whatsapp_calls#create'
+
+  # Health checks for WhatsApp calling
+  get '/health/whatsapp_calling', to: 'health_checks#whatsapp_calling'
+  get '/health/system', to: 'health_checks#system'
   get 'webhooks/instagram', to: 'webhooks/instagram#verify'
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
-  post 'webhooks/shopify', to: 'webhooks/shopify#events'
 
   namespace :twitter do
     resource :callback, only: [:show]

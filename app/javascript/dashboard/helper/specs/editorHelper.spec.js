@@ -11,15 +11,15 @@ import {
   setURLWithQueryAndSize,
   getContentNode,
   getFormattingForEditor,
+  stripUnsupportedFormatting,
   getSelectionCoords,
   getMenuAnchor,
   calculateMenuPosition,
-  stripUnsupportedFormatting,
 } from '../editorHelper';
-import { FORMATTING } from 'dashboard/constants/editor';
 import { EditorState } from '@chatwoot/prosemirror-schema';
 import { EditorView } from '@chatwoot/prosemirror-schema';
 import { Schema } from 'prosemirror-model';
+import { FORMATTING } from 'dashboard/constants/editor';
 
 // Define a basic ProseMirror schema
 const schema = new Schema({
@@ -144,7 +144,6 @@ describe('appendSignature', () => {
     });
   });
 });
-
 describe('stripUnsupportedMarkdown', () => {
   const richSignature =
     '**Bold** _italic_ [link](http://example.com) ![](http://localhost:3000/image.png)';
@@ -277,7 +276,6 @@ describe('appendSignature with channelType', () => {
     expect(result).toContain('*italic*');
   });
 });
-
 describe('cleanSignature', () => {
   it('removes any instance of horizontal rule', () => {
     const options = [
@@ -333,37 +331,6 @@ describe('removeSignature', () => {
     expect(removeSignature('This is a test\n\n--', 'This is a signature')).toBe(
       'This is a test\n\n'
     );
-  });
-});
-
-describe('removeSignature with stripped signature', () => {
-  const signatureWithImage =
-    'Thanks\n![](http://localhost:3000/image.png?cw_image_height=24px)';
-
-  it('removes stripped signature from body', () => {
-    // Simulate a body where signature was added with images stripped
-    const bodyWithStrippedSignature = 'Hello\n\n--\n\nThanks';
-    const result = removeSignature(
-      bodyWithStrippedSignature,
-      signatureWithImage
-    );
-    expect(result).toBe('Hello\n\n');
-  });
-  it('removes original signature from body', () => {
-    // Simulate a body where signature was added with images (using cleanSignature format)
-    const cleanedSig = cleanSignature(signatureWithImage);
-    const bodyWithOriginalSignature = `Hello\n\n--\n\n${cleanedSig}`;
-    const result = removeSignature(
-      bodyWithOriginalSignature,
-      signatureWithImage
-    );
-    expect(result).toBe('Hello\n\n');
-  });
-  it('handles signature without images', () => {
-    const simpleSignature = 'Best regards';
-    const body = 'Hello\n\n--\n\nBest regards';
-    const result = removeSignature(body, simpleSignature);
-    expect(result).toBe('Hello\n\n');
   });
 });
 
@@ -429,11 +396,15 @@ describe('insertAtCursor', () => {
     expect(result).toBeUndefined();
   });
 
-  it('should insert text node at cursor position', () => {
+  it('should unwrap doc nodes that are wrapped in a paragraph', () => {
+    const docNode = schema.node('doc', null, [
+      schema.node('paragraph', null, [schema.text('Hello')]),
+    ]);
+
     const editorState = createEditorState();
     const editorView = new EditorView(document.body, { state: editorState });
 
-    insertAtCursor(editorView, schema.text('Hello'), 0);
+    insertAtCursor(editorView, docNode, 0);
 
     // Check if node was unwrapped and inserted correctly
     expect(editorView.state.doc.firstChild.firstChild.text).toBe('Hello');

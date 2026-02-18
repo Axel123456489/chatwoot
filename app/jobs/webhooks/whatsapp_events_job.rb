@@ -9,6 +9,12 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
       return
     end
 
+    # Check if this is a call event
+    if call_event?(params)
+      process_call_event(channel, params)
+      return
+    end
+
     if message_echo_event?(params)
       handle_message_echo(channel, params)
     else
@@ -69,6 +75,31 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
 
   private
 
+  def whatsapp_calling_debug?
+    ENV['WHATSAPP_CALLING_DEBUG'] == 'true'
+  end
+
+  def log_whatsapp_calling_debug(message)
+    Rails.logger.debug(message) if whatsapp_calling_debug?
+  end
+
+  def call_event?(params)
+    return false unless params[:entry].is_a?(Array)
+
+    changes = params[:entry].first&.dig(:changes)
+    return false unless changes.is_a?(Array)
+
+    changes.first&.dig(:field) == 'calls'
+  end
+
+  def process_call_event(channel, params)
+    value = params[:entry].first[:changes].first[:value]
+
+    Whatsapp::Calling::WebhookCallEventProcessor
+      .new(channel: channel, debug: whatsapp_calling_debug?)
+      .perform(value)
+  end
+
   def channel_is_inactive?(channel)
     return true if channel.blank?
     return true if channel.reauthorization_required?
@@ -96,6 +127,7 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
     phone_number = "+#{wb_params[:entry].first[:changes].first.dig(:value, :metadata, :display_phone_number)}"
     phone_number_id = wb_params[:entry].first[:changes].first.dig(:value, :metadata, :phone_number_id)
     channel = Channel::Whatsapp.find_by(phone_number: phone_number)
+
     # validate to ensure the phone number id matches the whatsapp channel
     return channel if channel && channel.provider_config['phone_number_id'] == phone_number_id
   end

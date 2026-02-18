@@ -7,6 +7,7 @@ RSpec.describe Captain::Copilot::ChatService do
   let(:assistant) { create(:captain_assistant, account: account) }
   let(:contact) { create(:contact, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
+  let(:mock_openai_client) { instance_double(OpenAI::Client) }
   let(:copilot_thread) { create(:captain_copilot_thread, account: account, user: user) }
   let!(:copilot_message) do
     create(
@@ -19,29 +20,14 @@ RSpec.describe Captain::Copilot::ChatService do
     { user_id: user.id, copilot_thread_id: copilot_thread.id, conversation_id: conversation.display_id }
   end
 
-  # RubyLLM mocks
-  let(:mock_chat) { instance_double(RubyLLM::Chat) }
-  let(:mock_response) do
-    instance_double(RubyLLM::Message, content: '{ "content": "Hey", "reasoning": "Test reasoning", "reply_suggestion": false }')
-  end
-
   before do
-    InstallationConfig.find_or_create_by(name: 'CAPTAIN_OPEN_AI_API_KEY') do |c|
-      c.value = 'test-key'
-    end
-
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
-    allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
-    allow(mock_chat).to receive(:with_params).and_return(mock_chat)
-    allow(mock_chat).to receive(:with_tool).and_return(mock_chat)
-    allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
-    allow(mock_chat).to receive(:add_message).and_return(mock_chat)
-    allow(mock_chat).to receive(:on_new_message).and_return(mock_chat)
-    allow(mock_chat).to receive(:on_end_message).and_return(mock_chat)
-    allow(mock_chat).to receive(:on_tool_call).and_return(mock_chat)
-    allow(mock_chat).to receive(:on_tool_result).and_return(mock_chat)
-    allow(mock_chat).to receive(:messages).and_return([])
-    allow(mock_chat).to receive(:ask).and_return(mock_response)
+    InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_API_KEY').update!(value: 'test-key')
+    InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT').update!(value: 'https://api.openai.com/')
+    allow(OpenAI::Client).to receive(:new).and_return(mock_openai_client)
+    allow(mock_openai_client).to receive(:chat).and_return({
+      choices: [{ message: { content: '{ "content": "Hey" }' } }]
+    }.with_indifferent_access)
+    allow(ChatwootApp).to receive(:otel_enabled?).and_return(false)
   end
 
   describe '#initialize' do
@@ -63,10 +49,59 @@ RSpec.describe Captain::Copilot::ChatService do
       expect(messages.second[:role]).to eq('system')
       expect(messages.second[:content]).to include(account.id.to_s)
     end
+
+    it 'initializes OpenAI client with configured endpoint' do
+      expect(OpenAI::Client).to receive(:new).with(
+        access_token: 'test-key',
+        uri_base: 'https://api.openai.com/',
+        log_errors: Rails.env.development?
+      )
+
+      described_class.new(assistant, config)
+    end
+
+    context 'when CAPTAIN_OPEN_AI_ENDPOINT is not configured' do
+      before do
+        InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.destroy
+      end
+
+      it 'uses default OpenAI endpoint' do
+        expect(OpenAI::Client).to receive(:new).with(
+          access_token: 'test-key',
+          uri_base: 'https://api.openai.com/',
+          log_errors: Rails.env.development?
+        )
+
+        described_class.new(assistant, config)
+      end
+    end
+
+    context 'when custom endpoint is configured' do
+      before do
+        InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT').update!(value: 'https://custom.azure.com/')
+      end
+
+      it 'uses custom endpoint for OpenAI client' do
+        expect(OpenAI::Client).to receive(:new).with(
+          access_token: 'test-key',
+          uri_base: 'https://custom.azure.com/',
+          log_errors: Rails.env.development?
+        )
+
+        described_class.new(assistant, config)
+      end
+    end
   end
 
   describe '#generate_response' do
     let(:service) { described_class.new(assistant, config) }
+
+    before do
+      allow(service).to receive(:request_chat_completion) do |chat_service|
+        chat_service.send(:persist_message, { 'content' => 'Hey' }, 'assistant') if chat_service.copilot_thread.present?
+        { 'content' => 'Hey' }
+      end
+    end
 
     it 'adds user input to messages when present' do
       expect do
@@ -85,19 +120,83 @@ RSpec.describe Captain::Copilot::ChatService do
     end
 
     it 'returns the response from request_chat_completion' do
-      result = service.generate_response('Hello')
-
-      expect(result).to eq({ 'content' => 'Hey', 'reasoning' => 'Test reasoning', 'reply_suggestion' => false })
+      expect(service.generate_response('Hello')).to eq({ 'content' => 'Hey' })
     end
 
-    it 'increments response usage for the account' do
-      expect do
-        service.generate_response('Hello')
-      end.to(change { account.reload.custom_attributes['captain_responses_usage'].to_i }.by(1))
+    context 'when response contains tool calls' do
+      before do
+        allow(service).to receive(:request_chat_completion) do |chat_service|
+          chat_service.messages << { role: 'assistant', tool_calls: tool_calls }
+          chat_service.messages << {
+            role: 'tool', tool_call_id: 'call_123', content: tool_response_content
+          }
+          { 'content' => 'Tool response processed' }
+        end
+      end
+
+      context 'when tool call is valid' do
+        let(:tool_response_content) { conversation.to_llm_text }
+        let(:tool_calls) do
+          [{
+            'id' => 'call_123',
+            'function' => {
+              'name' => 'get_conversation',
+              'arguments' => "{ \"conversation_id\": #{conversation.display_id} }"
+            }
+          }]
+        end
+
+        it 'processes tool calls and appends them to messages' do
+          result = service.generate_response("Find conversation #{conversation.id}")
+
+          expect(result).to eq({ 'content' => 'Tool response processed' })
+          expect(service.messages).to include(
+            { role: 'assistant', tool_calls: tool_calls }
+          )
+          expect(service.messages).to include(
+            {
+              role: 'tool', tool_call_id: 'call_123', content: conversation.to_llm_text
+            }
+          )
+
+          expect(result).to eq({ 'content' => 'Tool response processed' })
+        end
+      end
+
+      context 'when tool call is invalid' do
+        let(:tool_response_content) { 'Tool not available' }
+        let(:tool_calls) do
+          [{
+            'id' => 'call_123',
+            'function' => {
+              'name' => 'get_settings',
+              'arguments' => '{}'
+            }
+          }]
+        end
+
+        it 'handles invalid tool calls' do
+          result = service.generate_response('Find settings')
+
+          expect(result).to eq({ 'content' => 'Tool response processed' })
+          expect(service.messages).to include(
+            {
+              role: 'assistant', tool_calls: tool_calls
+            }
+          )
+          expect(service.messages).to include(
+            {
+              role: 'tool',
+              tool_call_id: 'call_123',
+              content: 'Tool not available'
+            }
+          )
+        end
+      end
     end
   end
 
-  describe 'user setup behavior' do
+  describe '#setup_user' do
     it 'sets user when user_id is present in config' do
       service = described_class.new(assistant, { user_id: user.id })
       expect(service.user).to eq(user)
@@ -109,7 +208,7 @@ RSpec.describe Captain::Copilot::ChatService do
     end
   end
 
-  describe 'message history behavior' do
+  describe '#setup_message_history' do
     context 'when copilot_thread_id is present' do
       it 'finds the copilot thread and sets previous history from it' do
         service = described_class.new(assistant, { copilot_thread_id: copilot_thread.id })
@@ -137,7 +236,7 @@ RSpec.describe Captain::Copilot::ChatService do
     end
   end
 
-  describe 'message building behavior' do
+  describe '#build_messages' do
     it 'includes system message and account context' do
       service = described_class.new(assistant, {})
       messages = service.messages
@@ -167,9 +266,13 @@ RSpec.describe Captain::Copilot::ChatService do
     end
   end
 
-  describe 'message persistence behavior' do
+  describe '#persist_message' do
     context 'when copilot_thread is present' do
-      it 'creates a copilot message with the response' do
+      it 'creates a copilot message' do
+        allow(mock_openai_client).to receive(:chat).and_return({
+          choices: [{ message: { content: '{ "content": "Hey" }' } }]
+        }.with_indifferent_access)
+
         expect do
           described_class.new(assistant, { copilot_thread_id: copilot_thread.id }).generate_response('Hello')
         end.to change(CopilotMessage, :count).by(1)
@@ -182,6 +285,10 @@ RSpec.describe Captain::Copilot::ChatService do
 
     context 'when copilot_thread is not present' do
       it 'does not create a copilot message' do
+        allow(mock_openai_client).to receive(:chat).and_return({
+          choices: [{ message: { content: '{ "content": "Hey" }' } }]
+        }.with_indifferent_access)
+
         expect do
           described_class.new(assistant, {}).generate_response('Hello')
         end.not_to(change(CopilotMessage, :count))

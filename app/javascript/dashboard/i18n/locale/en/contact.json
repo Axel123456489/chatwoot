@@ -20,6 +20,12 @@
     "CALL": "Call",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Unable to start the call. Please try again.",
+    "WHATSAPP_CALL": "WhatsApp Call",
+    "WHATSAPP_CALL_INITIATED": "Initiating WhatsApp call…",
+    "WHATSAPP_CALL_FAILED": "Unable to start WhatsApp call. Please try again.",
+    "WHATSAPP_INBOX_PICKER": {
+      "TITLE": "Choose a WhatsApp inbox"
+    },
     "VOICE_INBOX_PICKER": {
       "TITLE": "Choose a voice inbox"
     },
@@ -50,6 +56,7 @@
     "MUTED_SUCCESS": "This contact is blocked successfully. You will not be notified of any future conversations.",
     "UNMUTED_SUCCESS": "This contact is unblocked successfully.",
     "SEND_TRANSCRIPT": "Send Transcript",
+    "MERGE_MESSAGES": "Merge messages",
     "EDIT_LABEL": "Edit",
     "SIDEBAR_SECTIONS": {
       "CUSTOM_ATTRIBUTES": "Custom Attributes",
@@ -58,6 +65,29 @@
       "NO_RECORDS_FOUND": "No attributes found"
     }
   },
+    "MERGE_MESSAGES": {
+      "TITLE": "Merge messages",
+      "DESC": "Search and select a conversation to merge the messages into. This will move all messages from the current conversation into the selected one.",
+      "PLACEHOLDER": "Search conversations by contact or subject",
+      "SOURCE_LABEL": "Source conversation",
+      "TARGET_LABEL": "Target conversation",
+      "SUMMARY_TITLE": "Summary",
+      "SOURCE": "Source",
+      "WILL_BE_DELETED": "will be deleted",
+      "TARGET": "Target",
+      "WILL_BE_KEPT": "will be kept",
+      "SUMMARY_NOTE": "Messages will be moved from the source conversation to the target conversation.",
+      "SUBMIT": "Merge",
+      "CANCEL": "Cancel",
+      "SUCCESS": "Messages merged successfully",
+      "ERROR": "Couldn't merge messages. Please try again.",
+      "CONFIRM": {
+        "TITLE": "Confirm merge",
+        "MESSAGE": "Are you sure you want to merge all messages from conversation #{sourceId} into conversation #{targetId}? This action cannot be undone.",
+        "YES": "Yes, merge",
+        "NO": "No, cancel"
+      }
+    }, 
   "EDIT_CONTACT": {
     "BUTTON_LABEL": "Edit Contact",
     "TITLE": "Edit contact",
@@ -377,7 +407,7 @@
       }
     },
     "PAGINATION_FOOTER": {
-      "SHOWING": "Showing {startItem} - {endItem} of {totalItems} contact | Showing {startItem} - {endItem} of {totalItems} contacts"
+      "SHOWING": "Showing {startItem} - {endItem} of {totalItems} contacts"
     },
     "FILTER": {
       "NAME": "Name",
@@ -651,7 +681,14 @@
       },
       "ACTION_BUTTONS": {
         "DISCARD": "Discard",
-        "SEND": "Send ({keyCode})"
+        "SEND": "Send ({keyCode})",
+        "CREATE_ONLY": "Create conversation"
+      },
+      "WHATSAPP_WARNING": {
+        "TITLE": "WhatsApp Template Required",
+        "MESSAGE": "Creating a conversation without a message on WhatsApp will require you to send an approved template as the first message. The conversation will be blocked for regular messages until you send a template.",
+        "CANCEL": "Cancel",
+        "CONFIRM": "Create anyway"
       }
     }
   }

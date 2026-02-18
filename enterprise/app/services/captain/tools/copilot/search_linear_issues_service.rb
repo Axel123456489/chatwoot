@@ -1,13 +1,33 @@
-class Captain::Tools::Copilot::SearchLinearIssuesService < Captain::Tools::BaseTool
-  def self.name
+class Captain::Tools::Copilot::SearchLinearIssuesService < Captain::Tools::BaseService
+  def name
     'search_linear_issues'
   end
 
-  description 'Search Linear issues based on a search term'
-  param :term, type: :string, desc: 'The search term to find Linear issues', required: true
+  def description
+    'Search Linear issues based on a search term'
+  end
 
-  def execute(term:)
+  def parameters
+    {
+      type: 'object',
+      properties: {
+        term: {
+          type: 'string',
+          description: 'The search term to find Linear issues'
+        }
+      },
+      required: %w[term]
+    }
+  end
+
+  def execute(arguments)
     return 'Linear integration is not enabled' unless active?
+
+    term = arguments['term']
+
+    Rails.logger.info "#{self.class.name}: Service called with the search term #{term}"
+
+    return 'Missing required parameters' if term.blank?
 
     linear_service = Integrations::Linear::ProcessorService.new(account: @assistant.account)
     result = linear_service.search_issue(term)

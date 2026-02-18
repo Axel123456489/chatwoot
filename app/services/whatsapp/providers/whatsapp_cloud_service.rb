@@ -1,4 +1,4 @@
-class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseService
+class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseService # rubocop:disable Metrics/ClassLength
   def send_message(phone_number, message)
     @message = message
 
@@ -9,6 +9,25 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     else
       send_text_message(phone_number, message)
     end
+  end
+
+  def send_reaction(phone_number, message_id, emoji)
+    response = HTTParty.post(
+      "#{phone_id_path}/messages",
+      headers: api_headers,
+      body: {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone_number,
+        type: 'reaction',
+        reaction: {
+          message_id: message_id,
+          emoji: emoji
+        }
+      }.to_json
+    )
+
+    response.success? ? response.parsed_response.dig('messages', 0, 'id') : nil
   end
 
   def send_template(phone_number, template_info, message)
@@ -75,14 +94,10 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     csat_template_service.get_template_status(template_name)
   end
 
-  def media_url(media_id)
-    "#{api_base_path}/v13.0/#{media_id}"
-  end
-
-  private
-
-  def csat_template_service
-    @csat_template_service ||= Whatsapp::CsatTemplateService.new(whatsapp_channel)
+  def media_url(media_id, phone_number_id = nil)
+    url = "#{api_base_path}/v13.0/#{media_id}"
+    url += "?phone_number_id=#{phone_number_id}" if phone_number_id
+    url
   end
 
   def api_base_path
@@ -203,5 +218,35 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
+  end
+
+  # name: String (snake_case), language: String (e.g., 'en' or 'en_US'), category: String (e.g., 'MARKETING', 'UTILITY', 'AUTHENTICATION')
+  def create_message_template(name:, language:, category:, components: [])
+    response = HTTParty.post(
+      "#{api_base_path}/v18.0/#{whatsapp_channel.provider_config['business_account_id']}/message_templates",
+      headers: api_headers,
+      body: {
+        name: name,
+        language: language,
+        category: category,
+        components: components
+      }.to_json
+    )
+
+    response.parsed_response
+  end
+
+  # Delete a message template by name and language
+  def delete_message_template(name:, language: 'en')
+    response = HTTParty.delete(
+      "#{api_base_path}/v18.0/#{whatsapp_channel.provider_config['business_account_id']}/message_templates",
+      headers: api_headers,
+      body: {
+        name: name,
+        language: language
+      }.to_json
+    )
+
+    response.parsed_response
   end
 end

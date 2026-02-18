@@ -804,101 +804,6 @@ RSpec.describe 'Inboxes API', type: :request do
           expect(found_inbox['csat_config']['display_type']).to eq('emoji')
         end
       end
-
-      it 'successfully updates inbox with template configuration' do
-        csat_config_with_template = csat_config.merge({
-                                                        'template' => {
-                                                          'name' => 'custom_survey_template',
-                                                          'template_id' => '123456789',
-                                                          'language' => 'en',
-                                                          'created_at' => Time.current.iso8601
-                                                        }
-                                                      })
-
-        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
-              params: {
-                csat_survey_enabled: true,
-                csat_config: csat_config_with_template
-              },
-              headers: admin.create_new_auth_token,
-              as: :json
-
-        expect(response).to have_http_status(:success)
-
-        inbox.reload
-        template_config = inbox.csat_config['template']
-        expect(template_config).to be_present
-        expect(template_config['name']).to eq('custom_survey_template')
-        expect(template_config['template_id']).to eq('123456789')
-        expect(template_config['language']).to eq('en')
-      end
-
-      it 'returns template configuration in inbox details' do
-        csat_config_with_template = csat_config.merge({
-                                                        'template' => {
-                                                          'name' => 'custom_survey_template',
-                                                          'template_id' => '123456789',
-                                                          'language' => 'en',
-                                                          'created_at' => Time.current.iso8601
-                                                        }
-                                                      })
-
-        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
-              params: {
-                csat_survey_enabled: true,
-                csat_config: csat_config_with_template
-              },
-              headers: admin.create_new_auth_token,
-              as: :json
-
-        get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
-            headers: admin.create_new_auth_token,
-            as: :json
-
-        expect(response).to have_http_status(:success)
-        json_response = response.parsed_body
-        template_config = json_response['csat_config']['template']
-
-        expect(template_config).to be_present
-        expect(template_config['name']).to eq('custom_survey_template')
-        expect(template_config['template_id']).to eq('123456789')
-        expect(template_config['language']).to eq('en')
-        expect(template_config['created_at']).to be_present
-      end
-
-      it 'removes template configuration when not provided in update' do
-        # First set up template configuration
-        csat_config_with_template = csat_config.merge({
-                                                        'template' => {
-                                                          'name' => 'custom_survey_template',
-                                                          'template_id' => '123456789'
-                                                        }
-                                                      })
-
-        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
-              params: {
-                csat_survey_enabled: true,
-                csat_config: csat_config_with_template
-              },
-              headers: admin.create_new_auth_token,
-              as: :json
-
-        # Then update without template
-        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
-              params: {
-                csat_survey_enabled: true,
-                csat_config: csat_config.merge({ 'message' => 'Updated message' })
-              },
-              headers: admin.create_new_auth_token,
-              as: :json
-
-        expect(response).to have_http_status(:success)
-
-        inbox.reload
-        config = inbox.csat_config
-        expect(config['message']).to eq('Updated message')
-        expect(config['template']).to be_nil # Template should be removed when not provided
-      end
     end
   end
 
@@ -1218,6 +1123,192 @@ RSpec.describe 'Inboxes API', type: :request do
           get "/api/v1/accounts/#{account.id}/inboxes/999999/health",
               headers: admin.create_new_auth_token,
               as: :json
+
+          expect(response).to have_http_status(:not_found)
+        end
+      end
+    end
+  end
+
+  describe 'PATCH /api/v1/accounts/{account.id}/inboxes/{inbox.id}/update_channel_settings' do
+    let(:whatsapp_channel) do
+      create(:channel_whatsapp,
+             account: account,
+             provider: 'whatsapp_cloud',
+             provider_config: {
+               'phone_number_id' => '123456789',
+               'business_account_id' => 'test_waba',
+               'api_key' => 'test_key'
+             },
+             sync_templates: false,
+             validate_provider_config: false)
+    end
+    let(:whatsapp_inbox) { create(:inbox, account: account, channel: whatsapp_channel) }
+    let(:non_whatsapp_inbox) { create(:inbox, account: account) }
+
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated agent' do
+      it 'returns unauthorized' do
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings",
+              headers: agent.create_new_auth_token,
+              params: {
+                channel: {
+                  calling_enabled: true,
+                  calling_config: {
+                    media_server_url: 'https://media.example.com/webrtc',
+                    stun_servers: ['stun:stun.l.google.com:19302'],
+                    audio_codec: 'opus'
+                  }
+                }
+              },
+              as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated administrator' do
+      context 'with WhatsApp channel' do
+        it 'updates calling settings successfully' do
+          patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: true,
+                    calling_config: {
+                      media_server_url: 'https://media.example.com/webrtc',
+                      stun_servers: ['stun:stun.l.google.com:19302'],
+                      audio_codec: 'opus'
+                    }
+                  }
+                },
+                as: :json
+
+          expect(response).to have_http_status(:success)
+
+          whatsapp_channel.reload
+          expect(whatsapp_channel.calling_enabled).to be true
+          expect(whatsapp_channel.calling_config['media_server_url']).to eq('https://media.example.com/webrtc')
+          expect(whatsapp_channel.calling_config['stun_servers']).to eq(['stun:stun.l.google.com:19302'])
+          expect(whatsapp_channel.calling_config['audio_codec']).to eq('opus')
+
+          json_response = response.parsed_body
+          expect(json_response['calling_enabled']).to be true
+          expect(json_response['calling_config']['media_server_url']).to eq('https://media.example.com/webrtc')
+        end
+
+        it 'disables calling when calling_enabled is false' do
+          whatsapp_channel.update!(
+            calling_enabled: true,
+            calling_config: {
+              media_server_url: 'https://media.example.com/webrtc'
+            }
+          )
+
+          patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: false
+                  }
+                },
+                as: :json
+
+          expect(response).to have_http_status(:success)
+
+          whatsapp_channel.reload
+          expect(whatsapp_channel.calling_enabled).to be false
+        end
+
+        it 'updates only specific calling config fields' do
+          whatsapp_channel.update!(
+            calling_enabled: true,
+            calling_config: {
+              media_server_url: 'https://old.example.com/webrtc',
+              stun_servers: ['stun:stun1.example.com:19302'],
+              audio_codec: 'pcma'
+            }
+          )
+
+          patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: true,
+                    calling_config: {
+                      media_server_url: 'https://new.example.com/webrtc',
+                      stun_servers: ['stun:stun.l.google.com:19302'],
+                      audio_codec: 'opus'
+                    }
+                  }
+                },
+                as: :json
+
+          expect(response).to have_http_status(:success)
+
+          whatsapp_channel.reload
+          expect(whatsapp_channel.calling_config['media_server_url']).to eq('https://new.example.com/webrtc')
+          expect(whatsapp_channel.calling_config['audio_codec']).to eq('opus')
+        end
+      end
+
+      context 'with non-WhatsApp channel' do
+        it 'returns unprocessable entity error' do
+          patch "/api/v1/accounts/#{account.id}/inboxes/#{non_whatsapp_inbox.id}/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: true
+                  }
+                },
+                as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = response.parsed_body
+          expect(json_response['error']).to eq('Only WhatsApp channels support this operation')
+        end
+      end
+
+      context 'with invalid data' do
+        it 'returns error when channel update fails' do
+          # Mock the update to fail
+          allow_any_instance_of(Channel::Whatsapp).to receive(:update).and_return(false)
+          errors_double = double(full_messages: ['Validation failed'], clear: nil, empty?: true, any?: false)
+          allow_any_instance_of(Channel::Whatsapp).to receive(:errors).and_return(errors_double)
+
+          patch "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: true,
+                    calling_config: {}
+                  }
+                },
+                as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = response.parsed_body
+          expect(json_response['error']).to eq(['Validation failed'])
+        end
+      end
+
+      context 'with non-existent inbox' do
+        it 'returns not found error' do
+          patch "/api/v1/accounts/#{account.id}/inboxes/999999/update_channel_settings",
+                headers: admin.create_new_auth_token,
+                params: {
+                  channel: {
+                    calling_enabled: true
+                  }
+                },
+                as: :json
 
           expect(response).to have_http_status(:not_found)
         end

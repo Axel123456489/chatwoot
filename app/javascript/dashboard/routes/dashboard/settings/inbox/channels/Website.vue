@@ -5,6 +5,7 @@ import router from '../../../../index';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import PageHeader from '../../SettingsSubPageHeader.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
+import { WIDGET_BUILDER_EDITOR_MENU_OPTIONS } from 'dashboard/constants/editor';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 
 export default {
@@ -23,6 +24,7 @@ export default {
       channelWelcomeTagline: '',
       greetingEnabled: false,
       greetingMessage: '',
+      welcomeTaglineEditorMenuOptions: WIDGET_BUILDER_EDITOR_MENU_OPTIONS,
     };
   },
   computed: {
@@ -145,7 +147,7 @@ export default {
           )
         "
         :max-length="255"
-        channel-type="Context::InboxSettings"
+        :enabled-menu-options="welcomeTaglineEditorMenuOptions"
         class="mb-4"
       />
 

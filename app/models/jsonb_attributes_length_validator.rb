@@ -15,7 +15,8 @@ class JsonbAttributesLengthValidator < ActiveModel::EachValidator
     when 'String'
       @record.errors.add @attribute, "#{key} length should be < 1500" if attribute_value.length > 1500
     when 'Integer'
-      @record.errors.add @attribute, "#{key} value should be < 9999999999" if attribute_value > 9_999_999_999
+      max_value = 9_999_999_999
+      @record.errors.add @attribute, "#{key} value should be < #{max_value}" if attribute_value > max_value
     end
   end
 end

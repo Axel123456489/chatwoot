@@ -72,6 +72,7 @@ class Inbox < ApplicationRecord
   has_one :assignment_policy, through: :inbox_assignment_policy
   has_one :agent_bot_inbox, dependent: :destroy_async
   has_one :agent_bot, through: :agent_bot_inbox
+  has_one :waha_session, dependent: :destroy
   has_many :webhooks, dependent: :destroy_async
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
 
@@ -169,6 +170,22 @@ class Inbox < ApplicationRecord
   def active_bot?
     agent_bot_inbox&.active? || hooks.where(app_id: %w[dialogflow],
                                             status: 'enabled').count.positive?
+  end
+
+  # Check if the active bot wants to handle conversation reopens triggered by incoming messages
+  # For n8n bots, this depends on the n8n_start_on_reopen config
+  def bot_handles_reopen?
+    return false unless agent_bot_inbox&.active?
+
+    bot = agent_bot
+    return true unless bot&.bot_config&.dig('n8n_native') # Non-n8n bots always handle reopens
+
+    # For n8n bots, check n8n_start_on_reopen (or legacy n8n_restart_on_reopen)
+    flag = bot.bot_config['n8n_start_on_reopen']
+    flag = bot.bot_config['n8n_restart_on_reopen'] if flag.nil?
+
+    # Default to true if not set, otherwise respect the setting
+    flag.nil? || ActiveRecord::Type::Boolean.new.cast(flag) == true
   end
 
   def inbox_type

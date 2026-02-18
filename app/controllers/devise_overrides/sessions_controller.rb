@@ -5,7 +5,7 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
   before_action :process_sso_auth_token, only: [:create]
 
   def new
-    redirect_to login_page_url(error: 'access-denied')
+    redirect_to login_page_url(error: 'access-denied'), allow_other_host: true
   end
 
   def create
@@ -52,7 +52,9 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
 
   def login_page_url(error: nil)
     frontend_url = ENV.fetch('FRONTEND_URL', nil)
+    frontend_url = 'http://localhost:3000' if frontend_url.blank?
 
+    frontend_url = frontend_url.gsub('0.0.0.0', 'localhost')
     "#{frontend_url}/app/login?error=#{error}"
   end
 

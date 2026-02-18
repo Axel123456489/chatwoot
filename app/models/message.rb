@@ -43,6 +43,7 @@ class Message < ApplicationRecord
 
   include MessageFilterHelpers
   include Liquidable
+  include Message::WhatsappCallMessage
   NUMBER_OF_PERMITTED_ATTACHMENTS = 15
 
   TEMPLATE_PARAMS_SCHEMA = {
@@ -148,8 +149,14 @@ class Message < ApplicationRecord
       conversation_id: conversation&.display_id,
       conversation: conversation.present? ? conversation_push_event_data : nil
     )
+    unless voice_call?
+      data.delete(:call_status)
+      data.delete(:call_duration)
+      data.delete(:call_metadata)
+    end
     data[:echo_id] = echo_id if echo_id.present?
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
+    data[:call_info] = call_info_data if voice_call?
     merge_sender_attributes(data)
   end
 
@@ -186,6 +193,19 @@ class Message < ApplicationRecord
     }
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
     data
+  end
+
+  # Content prepared for LLM prompts (plain text only).
+  def content_for_llm
+    base = processed_message_content.presence || content.presence
+    return nil if base.blank?
+
+    attachment_note = if attachments.loaded? ? attachments.any? : attachments.exists?
+                        attachment_summaries = attachments.map { |att| att.try(:file_type) || att.try(:content_type) || 'attachment' }
+                        " [Attachments: #{attachment_summaries.join(', ')}]"
+                      end
+
+    "#{base}#{attachment_note}".strip
   end
 
   # Method to get content with survey URL for outgoing channel delivery
@@ -252,21 +272,6 @@ class Message < ApplicationRecord
 
   def search_data
     Messages::SearchDataPresenter.new(self).search_data
-  end
-
-  # Returns message content suitable for LLM consumption
-  # Falls back to audio transcription or attachment placeholder when content is nil
-  def content_for_llm
-    return content if content.present?
-
-    audio_transcription = attachments
-                          .where(file_type: :audio)
-                          .filter_map { |att| att.meta&.dig('transcribed_text') }
-                          .join(' ')
-                          .presence
-    return "[Voice Message] #{audio_transcription}" if audio_transcription.present?
-
-    '[Attachment]' if attachments.any?
   end
 
   private
@@ -357,7 +362,8 @@ class Message < ApplicationRecord
   end
 
   def dispatch_create_events
-    Rails.configuration.dispatcher.dispatch(MESSAGE_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
+    Rails.configuration.dispatcher.dispatch(MESSAGE_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by,
+                                                                            reopened_conversation: @reopened_conversation)
 
     if valid_first_reply?
       Rails.configuration.dispatcher.dispatch(FIRST_REPLY_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
@@ -376,6 +382,9 @@ class Message < ApplicationRecord
   end
 
   def send_reply
+    # Don't send voice_call messages - they are for history only
+    return if voice_call?
+
     # FIXME: Giving it few seconds for the attachment to be uploaded to the service
     # active storage attaches the file only after commit
     attachments.blank? ? ::SendReplyJob.perform_later(id) : ::SendReplyJob.set(wait: 2.seconds).perform_later(id)
@@ -387,12 +396,16 @@ class Message < ApplicationRecord
 
     conversation.open! if conversation.snoozed?
 
-    reopen_resolved_conversation if conversation.resolved?
+    if conversation.resolved?
+      @reopened_conversation = true
+      reopen_resolved_conversation
+    end
   end
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
-    if conversation.inbox.active_bot?
+    # Only set pending if the bot actually wants to handle the reopen
+    if conversation.inbox.active_bot? && conversation.inbox.bot_handles_reopen?
       conversation.pending!
     elsif conversation.inbox.api?
       Current.executed_by = sender if reopened_by_contact?

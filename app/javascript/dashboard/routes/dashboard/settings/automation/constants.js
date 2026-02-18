@@ -3,6 +3,8 @@ import {
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
   OPERATOR_TYPES_6,
+  OPERATOR_TYPES_7,
+  OPERATOR_TYPES_8,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -67,12 +69,6 @@ export const AUTOMATIONS = {
         name: 'PHONE_NUMBER',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_6,
-      },
-      {
-        key: 'labels',
-        name: 'LABELS',
-        inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_3,
       },
     ],
     actions: [
@@ -260,13 +256,13 @@ export const AUTOMATIONS = {
         key: 'status',
         name: 'STATUS',
         inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'browser_language',
         name: 'BROWSER_LANGUAGE',
         inputType: 'search_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'mail_subject',
@@ -278,7 +274,7 @@ export const AUTOMATIONS = {
         key: 'country_code',
         name: 'COUNTRY_NAME',
         inputType: 'search_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'referer',
@@ -296,13 +292,13 @@ export const AUTOMATIONS = {
         key: 'assignee_id',
         name: 'ASSIGNEE_NAME',
         inputType: 'search_select',
-        filterOperators: OPERATOR_TYPES_3,
+        filterOperators: OPERATOR_TYPES_8,
       },
       {
         key: 'team_id',
         name: 'TEAM_NAME',
         inputType: 'search_select',
-        filterOperators: OPERATOR_TYPES_3,
+        filterOperators: OPERATOR_TYPES_8,
       },
       {
         key: 'email',
@@ -314,25 +310,25 @@ export const AUTOMATIONS = {
         key: 'inbox_id',
         name: 'INBOX',
         inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'conversation_language',
         name: 'CONVERSATION_LANGUAGE',
         inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'priority',
         name: 'PRIORITY',
         inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_1,
+        filterOperators: OPERATOR_TYPES_7,
       },
       {
         key: 'labels',
         name: 'LABELS',
         inputType: 'multi_select',
-        filterOperators: OPERATOR_TYPES_3,
+        filterOperators: OPERATOR_TYPES_7,
       },
     ],
     actions: [

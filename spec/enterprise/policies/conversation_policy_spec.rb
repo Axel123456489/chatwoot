@@ -14,6 +14,23 @@ RSpec.describe ConversationPolicy, type: :policy do
   end
 
   permissions :show? do
+    context 'when account allows unrestricted conversation access' do
+      let(:custom_role) { create(:custom_role, account: account, permissions: []) }
+
+      before do
+        account.update!(allow_agents_view_all_conversations: true)
+        agent_account_user.update!(role: :agent, custom_role: custom_role)
+      end
+
+      it 'allows access to conversations regardless of assignment' do
+        other_agent = create(:user, account: account, role: :agent)
+        another_inbox = create(:inbox, account: account)
+        conversation = create(:conversation, account: account, inbox: another_inbox, assignee: other_agent)
+
+        expect(subject).to permit(context, conversation)
+      end
+    end
+
     context 'when role grants conversation_unassigned_manage' do
       let(:custom_role) { create(:custom_role, account: account, permissions: ['conversation_unassigned_manage']) }
 

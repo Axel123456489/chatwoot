@@ -1,10 +1,20 @@
 class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Accounts::Conversations::BaseController
   # assigns agent/team to a conversation
   def create
+    team_resource = nil
+
+    # Asignar equipo si se proporciona team_id
+    team_resource = set_team if params.key?(:team_id)
+
+    # Asignar agente si se proporciona assignee_id o es un AgentBot
     if params.key?(:assignee_id) || agent_bot_assignment?
       set_agent
-    elsif params.key?(:team_id)
-      set_team
+      return # set_agent ya hace el render
+    end
+
+    # Si solo se asignó equipo, responder con el equipo
+    if team_resource
+      render json: team_resource
     else
       render json: nil
     end
@@ -20,6 +30,7 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
     ).perform
 
     render_agent(resource)
+    resource
   end
 
   def render_agent(resource)
@@ -36,7 +47,7 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
   def set_team
     @team = Current.account.teams.find_by(id: params[:team_id])
     @conversation.update!(team: @team)
-    render json: @team
+    @team
   end
 
   def agent_bot_assignment?

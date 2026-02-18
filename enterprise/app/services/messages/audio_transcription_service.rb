@@ -1,8 +1,4 @@
-class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
-  include Integrations::LlmInstrumentation
-
-  WHISPER_MODEL = 'whisper-1'.freeze
-
+class Messages::AudioTranscriptionService < Llm::BaseOpenAiService
   attr_reader :attachment, :message, :account
 
   def initialize(attachment)
@@ -31,24 +27,10 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   end
 
   def fetch_audio_file
-    blob = attachment.file.blob
-    temp_dir = Rails.root.join('tmp/uploads/audio-transcriptions')
+    temp_dir = Rails.root.join('tmp/uploads')
     FileUtils.mkdir_p(temp_dir)
-    temp_file_name = "#{blob.key}-#{blob.filename}"
-
-    if blob.filename.extension_without_delimiter.blank?
-      extension = extension_from_content_type(blob.content_type)
-      temp_file_name = "#{temp_file_name}.#{extension}" if extension.present?
-    end
-
-    temp_file_path = File.join(temp_dir, temp_file_name)
-
-    File.open(temp_file_path, 'wb') do |file|
-      blob.open do |blob_file|
-        IO.copy_stream(blob_file, file)
-      end
-    end
-
+    temp_file_path = File.join(temp_dir, attachment.file.filename.to_s)
+    File.write(temp_file_path, attachment.file.download, mode: 'wb')
     temp_file_path
   end
 
@@ -57,33 +39,19 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return transcribed_text if transcribed_text.present?
 
     temp_file_path = fetch_audio_file
-    transcribed_text = nil
 
-    File.open(temp_file_path, 'rb') do |file|
-      response = @client.audio.transcribe(
-        parameters: {
-          model: WHISPER_MODEL,
-          file: file,
-          temperature: 0.4
-        }
-      )
-      transcribed_text = response['text']
-    end
+    response = @client.audio.transcribe(
+      parameters: {
+        model: 'whisper-1',
+        file: File.open(temp_file_path),
+        temperature: 0.4
+      }
+    )
 
-    update_transcription(transcribed_text)
-    transcribed_text
-  ensure
-    FileUtils.rm_f(temp_file_path) if temp_file_path.present?
-  end
+    FileUtils.rm_f(temp_file_path)
 
-  def instrumentation_params(file_path)
-    {
-      span_name: 'llm.messages.audio_transcription',
-      model: WHISPER_MODEL,
-      account_id: account&.id,
-      feature_name: 'audio_transcription',
-      file_path: file_path
-    }
+    update_transcription(response['text'])
+    response['text']
   end
 
   def update_transcription(transcribed_text)
@@ -96,16 +64,5 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return unless ChatwootApp.advanced_search_allowed?
 
     message.reindex
-  end
-
-  def extension_from_content_type(content_type)
-    subtype = content_type.to_s.downcase.split(';').first.to_s.split('/').last.to_s
-    return if subtype.blank?
-
-    {
-      'x-m4a' => 'm4a',
-      'x-wav' => 'wav',
-      'x-mp3' => 'mp3'
-    }.fetch(subtype, subtype)
   end
 end

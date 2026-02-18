@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 
 import MessageMeta from '../MessageMeta.vue';
+import MessageReactions from '../MessageReactions.vue';
 
 import { emitter } from 'shared/helpers/mitt';
 import { useMessageContext } from '../provider.js';
@@ -114,6 +115,7 @@ const replyToPreview = computed(() => {
       />
     </div>
     <slot />
+    <MessageReactions />
     <MessageMeta
       v-if="shouldShowMeta"
       :class="[

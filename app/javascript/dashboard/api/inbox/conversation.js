@@ -137,6 +137,13 @@ class ConversationApi extends ApiClient {
     return axios.get(`${this.url}/${conversationId}/inbox_assistant`);
   }
 
+  mergeMessages({ sourceId, targetId }) {
+    // sourceId is the display_id of current conversation
+    return axios.post(`${this.url}/${sourceId}/merge_messages`, {
+      target_id: targetId,
+    });
+  }
+
   delete(conversationId) {
     return axios.delete(`${this.url}/${conversationId}`);
   }

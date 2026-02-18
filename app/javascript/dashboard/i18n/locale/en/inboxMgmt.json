@@ -353,6 +353,47 @@
           "ERROR_MESSAGE": "We were not able to create the voice channel"
         }
       },
+      "WAHA": {
+        "TITLE": "WAHA WhatsApp",
+        "DESC": "Connect WhatsApp using WAHA (WhatsApp HTTP API) - no official API required.",
+        "INBOX_NAME": {
+          "LABEL": "Inbox Name",
+          "PLACEHOLDER": "Enter a name for this WhatsApp inbox"
+        },
+        "NAME_REQUIRED": "Please enter an inbox name",
+        "INTEGRATION_NOT_ENABLED_TITLE": "WAHA Integration Not Enabled",
+        "INTEGRATION_NOT_ENABLED_MESSAGE": "You need to configure WAHA integration settings before creating a WhatsApp inbox.",
+        "GO_TO_INTEGRATION_SETTINGS": "Go to Integration Settings",
+        "INTEGRATION_CHECK_ERROR": "Failed to check WAHA integration status",
+        "CHECKING_INTEGRATION": "Checking WAHA integration...",
+        "WHAT_IS_WAHA_TITLE": "What is WAHA?",
+        "WHAT_IS_WAHA_DESCRIPTION": "WAHA (WhatsApp HTTP API) allows you to connect WhatsApp without the official Business API.",
+        "FEATURES": {
+          "NO_OFFICIAL_API": "No official WhatsApp Business API required",
+          "QR_CODE": "Connect by scanning QR code with your phone",
+          "MULTI_DEVICE": "Supports WhatsApp multi-device"
+        },
+        "CREATE_CHANNEL": "Create WhatsApp Inbox",
+        "QR_CODE_TITLE": "Scan QR Code",
+        "QR_CODE_DESCRIPTION": "Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device, and scan this QR code.",
+        "QR_CODE_EXPIRES": "QR code expires in {seconds} seconds",
+        "QR_CODE_ERROR": "Failed to load QR code",
+        "REFRESH_QR": "Refresh QR Code",
+        "CONNECTED": "WhatsApp Connected!",
+        "TRY_AGAIN": "Try Again",
+        "STATUS": {
+          "PENDING": "Pending",
+          "STARTING": "Starting...",
+          "SCAN_QR": "Scan QR Code",
+          "CONNECTING": "Connecting...",
+          "CONNECTED": "Connected",
+          "FAILED": "Failed",
+          "STOPPED": "Stopped"
+        },
+        "API": {
+          "ERROR_MESSAGE": "Failed to create WAHA WhatsApp inbox"
+        }
+      },
       "API_CHANNEL": {
         "TITLE": "API Channel",
         "DESC": "Integrate with API channel and start supporting your customers.",
@@ -453,6 +494,10 @@
           "WHATSAPP": {
             "TITLE": "WhatsApp",
             "DESCRIPTION": "Support your customers on WhatsApp"
+          },
+          "WAHA": {
+            "TITLE": "WhatsApp (WAHA)",
+            "DESCRIPTION": "Connect WhatsApp using self-hosted WAHA server"
           },
           "EMAIL": {
             "TITLE": "Email",
@@ -623,7 +668,9 @@
       "WIDGET_BUILDER": "Widget Builder",
       "BOT_CONFIGURATION": "Bot Configuration",
       "ACCOUNT_HEALTH": "Account Health",
-      "CSAT": "CSAT"
+      "CSAT": "CSAT",
+      "WAHA_CONFIG": "WhatsApp (WAHA)",
+      "CALLING_SETTINGS": "Calling Settings"
     },
     "ACCOUNT_HEALTH": {
       "TITLE": "Manage your WhatsApp account",
@@ -687,6 +734,93 @@
       "DISPLAY_EMOJI_PICKER": "Display emoji picker on the widget",
       "ALLOW_END_CONVERSATION": "Allow users to end conversation from the widget",
       "USE_INBOX_AVATAR_FOR_BOT": "Use inbox name and avatar for the bot"
+    },
+    "WAHA": {
+      "NOT_CONFIGURED": "WAHA WhatsApp is not configured for this inbox.",
+      "CONNECTION_STATUS": "Connection Status",
+      "CONNECTION_STATUS_DESC": "Current WhatsApp connection status and phone number",
+      "CONNECTED_DESC": "WhatsApp is connected and ready to receive messages.",
+      "NEEDS_QR_DESC": "Scan the QR code with WhatsApp to connect this session.",
+      "REFRESH_STATUS": "Refresh Status",
+      "PHONE_NUMBER": "Phone Number",
+      "SESSION_DETAILS": "Session Details",
+      "SESSION_DETAILS_DESC": "Session identifiers and webhook configuration",
+      "SCAN_QR_DESC": "Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device, and scan the QR code below.",
+      "SESSION_MANAGEMENT": "Session Management",
+      "SESSION_MANAGEMENT_DESC": "Actions to manage and troubleshoot your WAHA session",
+      "RESTART": "Restart Session",
+      "RESTART_DESC": "Restart the WAHA session to reconnect WhatsApp",
+      "RESTART_SUCCESS": "WAHA session restart initiated successfully.",
+      "RESTART_ERROR": "Failed to restart WAHA session. Please try again.",
+      "RECREATE_APP": "Recreate App",
+      "RECREATE_APP_DESC": "Recreate the Chatwoot app configuration in WAHA",
+      "LOGOUT": "Logout",
+      "LOGOUT_DESC": "Disconnect WhatsApp from this session (requires new QR scan)",
+      "LOGOUT_SUCCESS": "Successfully logged out from WhatsApp.",
+      "LOGOUT_ERROR": "Failed to logout from WhatsApp. Please try again.",
+      "SESSION_INFO": "Session Information",
+      "SESSION_NAME": "Session Name",
+      "PRESENCE": "Presence:",
+      "ENGINE": "Engine",
+      "WAHA_STATUS_LABEL": "WAHA Status",
+      "QR_SCAN_TITLE": "Scan with WhatsApp",
+      "QR_SCAN_INSTRUCTIONS": "Open WhatsApp on your phone → Settings → Linked Devices → Link a Device",
+      "INTEGRATION_CONFIG_TITLE": "Integration Configuration",
+      "WAHA_APP_ID": "WAHA App ID",
+      "WEBHOOK_URL": "Webhook URL",
+      "WAHA_SERVER_URL": "WAHA Server URL",
+      "INBOX_IDENTIFIER": "Inbox Identifier",
+      "APP_SETTINGS_TITLE": "Application Settings",
+      "INTERNAL_REFERENCES_TITLE": "Internal References",
+      "LOCALE": "Locale",
+      "LINK_PREVIEW": "Link Preview",
+      "STATUS": "Status",
+      "ENABLED": "Enabled",
+      "DISABLED": "Disabled",
+      "ACCOUNT_ID": "Account ID",
+      "INBOX_ID": "Inbox ID",
+      "SESSION_NAME_LABEL": "Session Name",
+      "INBOX_IDENTIFIER_LABEL": "Inbox Identifier",
+      "WEBHOOK_URL_LABEL": "Webhook URL",
+      "WAHA_DETAILS_TITLE": "WAHA Application Details",
+      "WAHA_DETAILS_DESC": "Technical details from the WAHA server",
+      "APP_INFO": {
+        "TITLE": "WAHA Application Details",
+        "SUBTITLE": "Configuration and technical information from the WAHA server"
+      },
+      "ADVANCED": {
+        "TITLE": "Advanced Configuration",
+        "SUBTITLE": "Configure advanced WAHA session parameters",
+        "SOURCE_OF_TRUTH": "WAHA is the Source of Truth",
+        "SOURCE_OF_TRUTH_DESC": "Configuration is always loaded from WAHA server. Changes made in WAHA Dashboard will be reflected here.",
+        "SYNC_FROM_WAHA": "Sync from WAHA",
+        "SYNC_SUCCESS": "Configuration synced successfully from WAHA server",
+        "SYNC_ERROR": "Failed to sync configuration from WAHA",
+        "RELOAD": "Reload from WAHA",
+        "DEBUG": "Debug Mode",
+        "DEBUG_DESC": "Enable verbose logging for this session (useful for troubleshooting)",
+        "METADATA": "Metadata",
+        "METADATA_DESC": "Store custom key-value pairs for your reference (JSON format)",
+        "METADATA_PARSE_ERROR": "Invalid JSON format in metadata field",
+        "IGNORE_TITLE": "Ignore Chat Types",
+        "IGNORE_DESC": "Filter out events from specific chat types to save resources",
+        "IGNORE_GROUPS": "Ignore Groups",
+        "IGNORE_CHANNELS": "Ignore Channels",
+        "IGNORE_STATUS": "Ignore Status Updates",
+        "IGNORE_BROADCAST": "Ignore Broadcast Lists",
+        "PROXY_TITLE": "Proxy Configuration",
+        "PROXY_DESC": "Configure proxy server for WhatsApp connection",
+        "PROXY_SERVER": "Proxy Server",
+        "PROXY_USERNAME": "Username (optional)",
+        "PROXY_PASSWORD": "Password (optional)",
+        "NOWEB_TITLE": "NOWEB Store Settings",
+        "NOWEB_DESC": "Configure session storage for NOWEB engine",
+        "NOWEB_ENABLED": "Enable Store",
+        "NOWEB_FULL_SYNC": "Full Sync",
+        "SAVE": "Save Configuration",
+        "CONFIG_SAVED": "Configuration saved successfully. Session will restart to apply changes.",
+        "CONFIG_ERROR": "Failed to save configuration. Please try again."
+      }
     },
     "SETTINGS_POPUP": {
       "MESSENGER_HEADING": "Messenger Script",
@@ -765,53 +899,6 @@
       "MAX_ASSIGNMENT_LIMIT": "Auto assignment limit",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Please enter a value greater than 0",
       "MAX_ASSIGNMENT_LIMIT_SUB_TEXT": "Limit the maximum number of conversations from this inbox that can be auto assigned to an agent"
-    },
-    "ASSIGNMENT": {
-      "TITLE": "Conversation Assignment",
-      "DESCRIPTION": "Automatically assign incoming conversations to available agents based on assignment policies",
-      "ENABLE_AUTO_ASSIGNMENT": "Enable automatic conversation assignment",
-      "DEFAULT_RULES_TITLE": "Default assignment rules",
-      "DEFAULT_RULES_DESCRIPTION": "Using the default assignment behavior for all conversations",
-      "DEFAULT_RULE_1": "Earliest created conversations first",
-      "DEFAULT_RULE_2": "Round robin distribution",
-      "CUSTOMIZE_WITH_POLICY": "Customize with assignment policy",
-      "USING_POLICY": "Using custom assignment policy for this inbox",
-      "CUSTOMIZE_POLICY": "Customize with assignment policy",
-      "DELETE_POLICY": "Delete policy",
-      "POLICY_LABEL": "Assignment policy",
-      "ASSIGNMENT_ORDER_LABEL": "Assignment Order",
-      "ASSIGNMENT_METHOD_LABEL": "Assignment Method",
-      "POLICY_STATUS": {
-        "ACTIVE": "Active",
-        "INACTIVE": "Inactive"
-      },
-      "PRIORITY": {
-        "EARLIEST_CREATED": "Earliest created",
-        "LONGEST_WAITING": "Longest waiting"
-      },
-      "METHOD": {
-        "ROUND_ROBIN": "Round robin",
-        "BALANCED": "Balanced assignment"
-      },
-      "UPGRADE_PROMPT": "Custom assignment policies are available on the Business plan",
-      "UPGRADE_TO_BUSINESS": "Upgrade to Business",
-      "DEFAULT_POLICY_LINKED": "Default policy linked",
-      "DEFAULT_POLICY_DESCRIPTION": "Link a custom assignment policy to customize how conversations are assigned to agents in this inbox.",
-      "LINK_EXISTING_POLICY": "Link existing policy",
-      "CREATE_NEW_POLICY": "Create new policy",
-      "NO_POLICIES": "No assignment policies found",
-      "VIEW_ALL_POLICIES": "View all policies",
-      "CURRENT_BEHAVIOR": "Currently using default assignment behavior:",
-      "LINK_SUCCESS": "Assignment policy linked successfully",
-      "LINK_ERROR": "Failed to link assignment policy"
-    },
-    "ASSIGNMENT_POLICY": {
-      "DELETE_CONFIRM_TITLE": "Delete assignment policy?",
-      "DELETE_CONFIRM_MESSAGE": "Are you sure you want to remove this assignment policy from this inbox? The inbox will revert to default assignment rules.",
-      "CANCEL": "Cancel",
-      "CONFIRM_DELETE": "Delete",
-      "DELETE_SUCCESS": "Assignment policy removed successfully",
-      "DELETE_ERROR": "Failed to remove assignment policy"
     },
     "FACEBOOK_REAUTHORIZE": {
       "TITLE": "Reauthorize",
@@ -1099,6 +1186,45 @@
       "INSTAGRAM": "Instagram",
       "TIKTOK": "TikTok",
       "VOICE": "Voice"
+    }
+  },
+  "WHATSAPP_CALLS": {
+    "SETTINGS": {
+      "TITLE": "WhatsApp Calling",
+      "DESCRIPTION": "Enable and configure WhatsApp Business API calling features for this inbox.",
+      "LOADING": "Loading calling settings...",
+      "ENABLE_CALLING": "Enable Calling",
+      "ENABLE_CALLING_HELP": "Allow agents to make and receive WhatsApp Business API calls",
+      "RECORDING_TITLE": "Call Recording",
+      "ENABLE_RECORDING": "Enable Call Recording",
+      "ENABLE_RECORDING_HELP": "Automatically record all WhatsApp calls for quality assurance and compliance. Recordings are stored securely.",
+      "RECORDING_PATH": "Recording Storage Path",
+      "RECORDING_PATH_PLACEHOLDER": "/storage/call_recordings",
+      "RECORDING_PATH_HELP": "Local path where recordings will be temporarily stored before upload to cloud storage",
+      "RECORDING_RETENTION": "Recording Retention Period",
+      "RECORDING_RETENTION_HELP": "How long to keep local recordings before automatic cleanup",
+      "DAYS": "days",
+      "STUN_TURN": "STUN/TURN Servers",
+      "STUN_SERVERS": "STUN Servers",
+      "STUN_SERVERS_PLACEHOLDER": "stun:stun.l.google.com:19302\nstun:stun1.l.google.com:19302",
+      "STUN_SERVERS_HELP": "One server per line. STUN servers help establish peer-to-peer connections.",
+      "AUDIO_TITLE": "Audio Settings",
+      "QUALITY": "Call Quality",
+      "AUDIO_CODEC": "Audio Codec",
+      "AUDIO_CODEC_HELP": "Opus provides the best quality and is recommended for most cases",
+      "RECOMMENDED": "Recommended",
+      "CANCEL": "Cancel",
+      "SAVE": "Save Settings",
+      "SUCCESS": "Calling settings updated successfully",
+      "ERROR_LOADING": "Error loading calling settings",
+      "ERROR_SAVING": "Error saving calling settings"
+    },
+    "ERRORS": {
+      "DEFAULT_TITLE": "Call Error",
+      "DEFAULT_MESSAGE": "An error occurred during the call. Please try again.",
+      "RETRY": "Retry",
+      "CONTACT_SUPPORT": "Contact Support",
+      "DISMISS": "Dismiss"
     }
   }
 }

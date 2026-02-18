@@ -62,6 +62,38 @@ class Conversation < ApplicationRecord
   include PushDataHelper
   include ConversationMuteHelpers
 
+  attr_accessor :latest_account_message, :latest_non_activity_message
+
+  def preloaded_unread_incoming_count=(count)
+    @preloaded_unread_messages = PreloadedUnreadMessagesProxy.new(count)
+  end
+
+  class PreloadedUnreadMessagesProxy
+    include Enumerable
+
+    def initialize(count)
+      @count = count.to_i
+    end
+
+    def each(&)
+      [].each(&)
+    end
+
+    def count(*args)
+      return @count if args.empty?
+
+      [].count(*args)
+    end
+
+    def empty?
+      @count.zero?
+    end
+
+    def any?
+      @count.positive?
+    end
+  end
+
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
@@ -90,6 +122,12 @@ class Conversation < ApplicationRecord
     open.where('last_activity_at < ?', Time.now.utc - auto_resolve_after.minutes)
   }
 
+  scope :with_pending_n8n_flow, lambda {
+    joins(:assignee_agent_bot)
+      .where(status: :pending)
+      .where("agent_bots.bot_config ->> 'n8n_native' = 'true'")
+  }
+
   scope :last_user_message_at, lambda {
     joins(
       "INNER JOIN (#{last_messaged_conversations.to_sql}) AS grouped_conversations
@@ -109,10 +147,12 @@ class Conversation < ApplicationRecord
   has_many :mentions, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
+  has_many :whatsapp_calls, dependent: :destroy_async
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
+  has_one :n8n_flow, dependent: :destroy
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
@@ -159,6 +199,7 @@ class Conversation < ApplicationRecord
   end
 
   def bot_handoff!
+    self.assignee_agent_bot_id = nil
     open!
     dispatcher_dispatch(CONVERSATION_BOT_HANDOFF)
   end
@@ -172,6 +213,8 @@ class Conversation < ApplicationRecord
   end
 
   def unread_incoming_messages
+    return @preloaded_unread_messages if defined?(@preloaded_unread_messages) && @preloaded_unread_messages
+
     unread_messages.where(account_id: account_id).incoming.last(10)
   end
 
@@ -220,6 +263,7 @@ class Conversation < ApplicationRecord
   def execute_after_update_commit_callbacks
     handle_resolved_status_change
     notify_status_change
+    clear_bot_assignment_on_reopen_by_agent
     create_activity
     notify_conversation_updation
   end
@@ -256,7 +300,15 @@ class Conversation < ApplicationRecord
 
     return handle_campaign_status if campaign.present?
 
-    # TODO: make this an inbox config instead of assuming bot conversations should start as pending
+    # If conversation has an assignee (agent), keep it open even if inbox has a bot
+    # This handles the case where an agent creates a conversation manually
+    return if assignee_id.present?
+
+    # If an agent is creating this conversation (via dashboard), keep it open
+    # Current.user is set in the controller context
+    return if Current.user.is_a?(User)
+
+    # Only set to pending for bot handling if created by incoming message (no Current.user)
     self.status = :pending if inbox.active_bot?
   end
 
@@ -272,6 +324,12 @@ class Conversation < ApplicationRecord
   def notify_conversation_updation
     return unless previous_changes.keys.present? && allowed_keys?
 
+    # Avoid double-dispatch when labels changed, since create_label_change already dispatched
+    if previous_changes.key?(:label_list) && @cw_label_event_dispatched
+      Rails.logger.info('[Automation][Conversation] Skipping duplicate conversation.updated dispatch for label_list change')
+      return
+    end
+
     dispatch_conversation_updated_event(previous_changes)
   end
 
@@ -285,6 +343,15 @@ class Conversation < ApplicationRecord
       previous_changes.keys.intersect?(list_of_keys) ||
       (previous_changes['additional_attributes'].present? && previous_changes['additional_attributes'][1].keys.intersect?(%w[conversation_language]))
     )
+  end
+
+  def clear_bot_assignment_on_reopen_by_agent
+    return unless saved_change_to_status?
+    return unless status == 'open'
+    return if assignee_agent_bot_id.blank?
+    return unless Current.user.is_a?(User)
+
+    AgentBots::ClearAssignmentJob.perform_later(id, assignee_agent_bot_id)
   end
 
   def load_attributes_created_by_db_triggers
@@ -325,6 +392,10 @@ class Conversation < ApplicationRecord
 
     previous_labels, current_labels = previous_changes[:label_list]
     return unless (previous_labels.is_a? Array) && (current_labels.is_a? Array)
+
+    # mark that we already dispatched conversation.updated for label change
+    @cw_label_event_dispatched = true
+    dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
 
     create_label_added(user_name, current_labels - previous_labels)
     create_label_removed(user_name, previous_labels - current_labels)

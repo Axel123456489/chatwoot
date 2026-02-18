@@ -1,6 +1,7 @@
 module Enterprise::ConversationPolicy
   def show?
     return false unless super
+    return true if account&.allow_agents_view_all_conversations?
     return true unless custom_role_permissions?
 
     permissions = custom_role_permissions

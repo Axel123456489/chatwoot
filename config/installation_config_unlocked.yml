@@ -1,0 +1,28 @@
+# Configuration to enable all premium features by default
+# This configuration unlocks all Enterprise features for Community edition
+
+# Account level feature defaults - enable all premium features
+ACCOUNT_LEVEL_FEATURE_DEFAULTS:
+  - name: disable_branding
+    enabled: true
+  - name: audit_logs
+    enabled: true
+  - name: sla
+    enabled: true
+  - name: captain_integration
+    enabled: true
+  - name: custom_roles
+    enabled: true
+  - name: captain_integration_v2
+    enabled: true
+  - name: help_center_embedding_search
+    enabled: true
+  - name: response_bot
+    enabled: true
+
+# Installation pricing plan override
+INSTALLATION_PRICING_PLAN: 'enterprise'
+INSTALLATION_PRICING_PLAN_QUANTITY: 999999
+
+# Deployment environment
+DEPLOYMENT_ENV: 'self_hosted_enterprise'

@@ -12,6 +12,10 @@ const props = defineProps({
     type: String,
     default: 'canned',
   },
+  maxHeightRem: {
+    type: Number,
+    default: 9.75,
+  },
 });
 
 const emit = defineEmits(['mentionSelect']);
@@ -74,6 +78,7 @@ const variableKey = (item = {}) => {
   <div
     ref="mentionsListContainerRef"
     class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full z-20 shadow-md left-0 bottom-full max-h-[9.75rem] border border-solid border-n-strong mention--box"
+    :style="{ maxHeight: `${props.maxHeightRem}rem` }"
   >
     <ul class="mb-0 vertical dropdown menu">
       <woot-dropdown-item

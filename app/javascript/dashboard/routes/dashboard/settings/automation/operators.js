@@ -111,3 +111,43 @@ export const OPERATOR_TYPES_6 = [
     label: 'Starts With',
   },
 ];
+
+// Adds support for detecting when a value changes from X to Y
+export const OPERATOR_TYPES_7 = [
+  {
+    value: 'equal_to',
+    label: 'Equal to',
+  },
+  {
+    value: 'not_equal_to',
+    label: 'Not equal to',
+  },
+  {
+    value: 'attribute_changed',
+    label: 'Attribute changed',
+  },
+];
+
+// Similar to OPERATOR_TYPES_3 but with attribute_changed support
+export const OPERATOR_TYPES_8 = [
+  {
+    value: 'equal_to',
+    label: 'Equal to',
+  },
+  {
+    value: 'not_equal_to',
+    label: 'Not equal to',
+  },
+  {
+    value: 'is_present',
+    label: 'Is present',
+  },
+  {
+    value: 'is_not_present',
+    label: 'Is not present',
+  },
+  {
+    value: 'attribute_changed',
+    label: 'Attribute changed',
+  },
+];

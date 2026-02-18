@@ -165,7 +165,10 @@ const getInReplyToMessage = parentMessage => {
 <template>
   <ul class="px-4 bg-n-surface-1">
     <slot name="beforeAll" />
-    <template v-for="(message, index) in allMessages" :key="message.id">
+    <template
+      v-for="(message, index) in allMessages"
+      :key="`${message.id}-${message.updatedAt || message.createdAt}-${message.attachments?.length || 0}`"
+    >
       <slot
         v-if="firstUnreadId && message.id === firstUnreadId"
         name="unreadBadge"

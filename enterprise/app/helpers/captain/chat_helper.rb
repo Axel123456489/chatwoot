@@ -50,9 +50,9 @@ module Captain::ChatHelper
     # RubyLLM callbacks fire after chunks arrive, not around the API call, so
     # span timing won't reflect actual API latency. But Langfuse calculates costs
     # from model + token counts, so this is sufficient for cost tracking.
-    chat.on_end_message { |message| record_llm_generation(chat, message) }
-    chat.on_tool_call { |tool_call| handle_tool_call(tool_call) }
-    chat.on_tool_result { |result| handle_tool_result(result) }
+    chat.on_end_message { |message| record_llm_generation(chat, message) } if chat.respond_to?(:on_end_message)
+    chat.on_tool_call { |tool_call| handle_tool_call(tool_call) } if chat.respond_to?(:on_tool_call)
+    chat.on_tool_result { |result| handle_tool_result(result) } if chat.respond_to?(:on_tool_result)
 
     chat
   end

@@ -11,10 +11,23 @@ class ConversationPolicy < ApplicationPolicy
     administrator? || agent_bot? || agent_can_view_conversation?
   end
 
+  def terminate?
+    # Allow terminating calls if user can view the conversation
+    show?
+  end
+
+  def update?
+    administrator? || agent_bot? || agent_can_view_conversation?
+  end
+
   private
 
   def agent_can_view_conversation?
-    inbox_access? || team_access?
+    unrestricted_agent_access? || inbox_access? || team_access?
+  end
+
+  def unrestricted_agent_access?
+    account&.allow_agents_view_all_conversations?
   end
 
   def administrator?

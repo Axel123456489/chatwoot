@@ -19,6 +19,113 @@
     }
   ],
   "paths": {
+    "/public/api/v1/integrations/n8n/switch_flow": {
+      "post": {
+        "tags": ["Integrations", "N8n"],
+        "operationId": "public-n8n-switch-flow",
+        "summary": "Switch active n8n flow for a conversation",
+        "description": "Assign or override the current n8n flow (flow_id) for an existing conversation. Useful when a running flow launches a subflow and subsequent waiting webhooks should target the new execution id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["conversation_id", "flow_id"],
+                "properties": {
+                  "conversation_id": { "type": "integer", "description": "Conversation internal ID" },
+                  "flow_id": { "type": "string", "description": "New n8n execution identifier (subflow id)" },
+                  "flow_webhook_url": { "type": "string", "description": "Optional start webhook URL for the new flow; used to derive waiting endpoint." }
+                }
+              },
+              "examples": {
+                "basic": {
+                  "value": { "conversation_id": 123, "flow_id": "exec_987654" }
+                },
+                "with_url": {
+                  "value": { "conversation_id": 123, "flow_id": "exec_sub_555", "flow_webhook_url": "https://n8n.example.com/webhook/abcd1234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flow switched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "conversation_id": { "type": "integer" },
+                    "flow_id": { "type": "string" }
+                  }
+                },
+                "examples": {
+                  "success": { "value": { "message": "Flow switched", "conversation_id": 123, "flow_id": "exec_sub_555" } }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (missing params)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } }
+            }
+          },
+          "404": {
+            "description": "Conversation not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } }
+            }
+          },
+          "500": {
+            "description": "Internal error while switching flow",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/n8n/switch_flow": {
+      "post": {
+        "tags": ["Integrations", "N8n"],
+        "operationId": "api-v1-n8n-switch-flow",
+        "summary": "Switch active n8n flow (authenticated context)",
+        "description": "Same behavior as public endpoint but intended for authenticated API v1 usage.",
+        "security": [ { "userAccessToken": [] } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["conversation_id", "flow_id"],
+                "properties": {
+                  "conversation_id": { "type": "integer" },
+                  "flow_id": { "type": "string" },
+                  "flow_webhook_url": { "type": "string" }
+                }
+              },
+              "examples": {
+                "basic": { "value": { "conversation_id": 321, "flow_id": "exec_abc" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flow switched",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" }, "conversation_id": { "type": "integer" }, "flow_id": { "type": "string" } } }, "examples": { "success": { "value": { "message": "Flow switched", "conversation_id": 321, "flow_id": "exec_abc" } } } } }
+          },
+          "400": { "description": "Bad request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } } } },
+          "500": { "description": "Internal error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/bad_request_error" } } } }
+        }
+      }
+    },
     "/platform/api/v1/accounts": {
       "post": {
         "tags": [
@@ -4927,6 +5034,105 @@
           },
           "404": {
             "description": "Conversation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/conversations/{conversation_id}/merge_messages": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/account_id"
+        },
+        {
+          "$ref": "#/components/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "operationId": "merge-messages-of-a-conversation",
+        "summary": "Merge Messages",
+        "description": "Move all messages from this conversation into the target conversation (must be in the same inbox) and delete the source conversation",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "target_id"
+                ],
+                "properties": {
+                  "target_id": {
+                    "type": "number",
+                    "description": "Display ID of the target conversation within the same inbox",
+                    "example": 12345
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source_id": {
+                      "type": "number",
+                      "description": "Display ID of the source conversation (moved from)"
+                    },
+                    "target_id": {
+                      "type": "number",
+                      "description": "Display ID of the target conversation (moved to)"
+                    },
+                    "moved_count": {
+                      "type": "number",
+                      "description": "Number of messages moved from source to target"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity (e.g., missing target_id or conversations not in the same inbox)",
             "content": {
               "application/json": {
                 "schema": {

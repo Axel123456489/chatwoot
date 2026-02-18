@@ -69,7 +69,12 @@ module Redis::Alfred
     end
 
     def lpush(key, values)
-      $alfred.with { |conn| conn.lpush(key, values) }
+      flattened = Array(values).flatten
+      return if flattened.empty?
+
+      $alfred.with do |conn|
+        flattened.each { |value| conn.lpush(key, value) }
+      end
     end
 
     def rpoplpush(source, destination)
