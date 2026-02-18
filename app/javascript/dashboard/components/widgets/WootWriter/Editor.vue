@@ -28,10 +28,7 @@ import { useAlert } from 'dashboard/composables';
 import { vOnClickOutside } from '@vueuse/components';
 
 import { BUS_EVENTS } from 'shared/constants/busEvents';
-import {
-  CONVERSATION_EVENTS,
-  CAPTAIN_EVENTS,
-} from 'dashboard/helper/AnalyticsHelper/events';
+import { CONVERSATION_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { MESSAGE_EDITOR_IMAGE_RESIZES } from 'dashboard/constants/editor';
 
 import {
@@ -89,7 +86,6 @@ const props = defineProps({
   // are triggered except when this flag is true
   allowSignature: { type: Boolean, default: false },
   channelType: { type: String, default: '' },
-  conversationId: { type: Number, default: null },
   medium: { type: String, default: '' },
   showImageResizeToolbar: { type: Boolean, default: false }, // A kill switch to show or hide the image toolbar
   focusOnMount: { type: Boolean, default: true },
@@ -108,6 +104,7 @@ const emit = defineEmits([
   'input',
   'update:modelValue',
   'executeCopilotAction',
+  'attachments',
 ]);
 
 const { t } = useI18n();
@@ -405,14 +402,7 @@ function openFileBrowser() {
 }
 
 function handleCopilotClick() {
-  const isOpening = !showSelectionMenu.value;
-  if (isOpening) {
-    useTrack(CAPTAIN_EVENTS.EDITOR_AI_MENU_OPENED, {
-      conversationId: props.conversationId,
-      entryPoint: 'inline',
-    });
-  }
-  showSelectionMenu.value = isOpening;
+  showSelectionMenu.value = !showSelectionMenu.value;
 }
 
 function handleClickOutside(event) {
@@ -664,8 +654,10 @@ function insertContentIntoEditor(content, defaultFrom = 0) {
  * Inserts special content (mention, canned response, variable, emoji) into the editor.
  * @param {string} type - The type of special content to insert. Possible values: 'mention', 'canned_response', 'variable', 'emoji'.
  * @param {Object|string} content - The content to insert, depending on the type.
+ * @param {Array} files - Optional array of file attachments (for canned responses).
+ * @param {string} contentType - Optional content type for canned responses ('markdown' or 'plain_text').
  */
-function insertSpecialContent(type, content) {
+function insertSpecialContent(type, content, files, contentType) {
   if (!editorView) {
     return;
   }
@@ -675,7 +667,8 @@ function insertSpecialContent(type, content) {
     type,
     content,
     range.value,
-    props.variables
+    props.variables,
+    contentType
   );
 
   if (!node) return;
@@ -691,6 +684,11 @@ function insertSpecialContent(type, content) {
   };
 
   useTrack(event_map[type]);
+
+  // Emit files if this is a canned response with attachments
+  if (type === 'cannedResponse' && files && files.length) {
+    emit('attachments', files);
+  }
 }
 
 function handleLineBreakWhenCmdAndEnterToSendEnabled(event) {
@@ -836,13 +834,7 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 </script>
 
 <template>
-  <div
-    ref="editorRoot"
-    class="relative w-full"
-    :class="{
-      'opacity-50 cursor-not-allowed pointer-events-none': disabled,
-    }"
-  >
+  <div ref="editorRoot" class="relative w-full">
     <TagAgents
       v-if="showUserMentions && isPrivate"
       :search-key="mentionSearchKey"
@@ -851,7 +843,10 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
     <CannedResponse
       v-if="shouldShowCannedResponses"
       :search-key="cannedSearchTerm"
-      @replace="content => insertSpecialContent('cannedResponse', content)"
+      @replace="
+        (content, files, contentType) =>
+          insertSpecialContent('cannedResponse', content, files, contentType)
+      "
     />
     <VariableList
       v-if="shouldShowVariables"

@@ -11,12 +11,7 @@ import { picoSearch } from '@scmmishra/pico-search';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 
 import Button from 'dashboard/components-next/button/Button.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
-import {
-  BaseTable,
-  BaseTableRow,
-  BaseTableCell,
-} from 'dashboard/components-next/table';
+import FileIcon from 'dashboard/components-next/icon/FileIcon.vue';
 
 defineOptions({
   name: 'CannedResponseSettings',
@@ -78,8 +73,18 @@ const fetchCannedResponses = async () => {
   }
 };
 
+const fetchCustomRoles = async () => {
+  try {
+    // Load custom roles for visibility selector; ignore if module not present
+    await store.dispatch('customRole/getCustomRole');
+  } catch (e) {
+    // ignore
+  }
+};
+
 onMounted(() => {
   fetchCannedResponses();
+  fetchCustomRoles();
 });
 
 const showAlertMessage = message => {
@@ -133,9 +138,39 @@ const confirmDeletion = () => {
 const tableHeaders = computed(() => {
   return [
     t('CANNED_MGMT.LIST.TABLE_HEADER.SHORT_CODE'),
+    t('CANNED_MGMT.LIST.TABLE_HEADER.CONTENT'),
+    t('CANNED_MGMT.LIST.TABLE_HEADER.ATTACHMENTS'),
     t('CANNED_MGMT.LIST.TABLE_HEADER.ACTIONS'),
   ];
 });
+
+const getFiles = item =>
+  item?.files?.length ? item.files : item?.file_base_data || [];
+const hasAttachments = item =>
+  Array.isArray(getFiles(item)) && getFiles(item).length > 0;
+
+const fileExtension = file => {
+  let ext = '';
+  if (file?.filename) {
+    const parts = String(file.filename).split('.');
+    if (parts.length > 1) ext = parts.pop();
+  }
+  if (!ext && file?.file_type) {
+    const typeParts = String(file.file_type).split('/');
+    if (typeParts.length > 1) ext = typeParts[1];
+  }
+  if (!ext) return '';
+  ext = String(ext).toLowerCase();
+  if (ext === 'jpeg') ext = 'jpg';
+  return ext;
+};
+
+const uniqueAttachmentExtensions = item => {
+  const list = getFiles(item);
+  if (!list.length) return [];
+  const exts = list.map(fileExtension).filter(Boolean);
+  return [...new Set(exts)];
+};
 </script>
 
 <template>
@@ -154,20 +189,89 @@ const tableHeaders = computed(() => {
         :search-placeholder="$t('CANNED_MGMT.SEARCH_PLACEHOLDER')"
         feature-name="canned_responses"
       >
-        <template v-if="records?.length" #count>
-          <span class="text-body-main text-n-slate-11">
-            {{ $t('CANNED_MGMT.COUNT', { n: records.length }) }}
-          </span>
-        </template>
-        <template #actions>
-          <Button
-            :label="$t('CANNED_MGMT.HEADER_BTN_TXT')"
-            size="sm"
-            @click="openAddPopup"
-          />
-        </template>
-      </BaseSettingsHeader>
-    </template>
+        {{ $t('CANNED_MGMT.LIST.404') }}
+      </p>
+      <table v-else class="min-w-full overflow-x-auto divide-y divide-n-weak">
+        <thead>
+          <th
+            v-for="thHeader in tableHeaders"
+            :key="thHeader"
+            class="py-4 ltr:pr-4 rtl:pl-4 text-left font-semibold text-n-slate-11 last:text-right"
+          >
+            <span v-if="thHeader !== tableHeaders[0]">
+              {{ thHeader }}
+            </span>
+            <button
+              v-else
+              class="flex items-center p-0 cursor-pointer"
+              @click="toggleSort"
+            >
+              <span class="mb-0">
+                {{ thHeader }}
+              </span>
+              <fluent-icon
+                class="ml-2 size-4"
+                :icon="sortOrder === 'desc' ? 'chevron-up' : 'chevron-down'"
+              />
+            </button>
+          </th>
+        </thead>
+        <tbody class="divide-y divide-n-weak text-n-slate-11">
+          <tr
+            v-for="(cannedItem, index) in records"
+            :key="cannedItem.short_code"
+          >
+            <td
+              class="py-4 ltr:pr-4 rtl:pl-4 truncate max-w-xs font-medium"
+              :title="cannedItem.short_code"
+            >
+              {{ cannedItem.short_code }}
+            </td>
+            <td class="py-4 ltr:pr-4 rtl:pl-4 md:break-all whitespace-normal">
+              {{ getPlainText(cannedItem.content) }}
+            </td>
+            <td class="py-4 ltr:pr-4 rtl:pl-4">
+              <div
+                v-if="hasAttachments(cannedItem)"
+                class="flex flex-wrap gap-2 items-center"
+              >
+                <template
+                  v-for="ext in uniqueAttachmentExtensions(cannedItem)"
+                  :key="ext"
+                >
+                  <div
+                    class="inline-flex items-center gap-1 rounded border border-n-weak px-2 py-1 text-xs text-n-slate-11"
+                  >
+                    <FileIcon class="size-4" :file-type="ext" />
+                    <span class="uppercase">{{ ext }}</span>
+                  </div>
+                </template>
+              </div>
+              <span v-else class="text-n-slate-9">—</span>
+            </td>
+            <td class="py-4 flex justify-end gap-1">
+              <Button
+                v-tooltip.top="$t('CANNED_MGMT.EDIT.BUTTON_TEXT')"
+                icon="i-lucide-pen"
+                slate
+                xs
+                faded
+                @click="openEditPopup(cannedItem)"
+              />
+              <Button
+                v-tooltip.top="$t('CANNED_MGMT.DELETE.BUTTON_TEXT')"
+                icon="i-lucide-trash-2"
+                xs
+                ruby
+                faded
+                :is-loading="loading[cannedItem.id]"
+                @click="openDeletePopup(cannedItem, index)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <template #body>
       <BaseTable
@@ -256,7 +360,10 @@ const tableHeaders = computed(() => {
         :id="activeResponse.id"
         :edshort-code="activeResponse.short_code"
         :edcontent="activeResponse.content"
+        :edcontent-type="activeResponse.content_type"
         :on-close="hideEditPopup"
+        :initial-files="activeResponse.files || []"
+        :initial-custom-role-id="activeResponse.custom_role_id ?? ''"
       />
     </woot-modal>
 
