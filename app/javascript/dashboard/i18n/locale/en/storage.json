@@ -1,0 +1,71 @@
+{
+  "STORAGE_MGMT": {
+    "TITLE": "Storage Management",
+    "DESCRIPTION": "Manage and optimize your account's file storage",
+    "REFRESH": "Refresh Analysis",
+    "ANALYZE_SUCCESS": "Storage analysis completed successfully",
+    "ANALYZE_ERROR": "Failed to analyze storage. Please try again.",
+    "DUPLICATES_ERROR": "Failed to load duplicates. Please try again.",
+    
+    "OVERVIEW_TITLE": "Storage Overview",
+    "OVERVIEW_SUBTITLE": "Summary of your account's storage usage",
+    
+    "TOTAL_STORAGE": "Total Storage",
+    "TOTAL_FILES": "{count} files",
+    "ORPHAN_FILES": "Orphan Files",
+    "ORPHAN_COUNT": "{count} files",
+    "DUPLICATE_WASTE": "Duplicate Waste",
+    "DUPLICATE_COUNT": "{count} duplicates",
+    "POTENTIAL_SAVINGS": "Potential Savings",
+    
+    "BY_SOURCE_TITLE": "Storage by Source",
+    "BY_SOURCE_SUBTITLE": "Where your files are being used",
+    "SOURCE_MESSAGES": "Messages",
+    "SOURCE_CANNED_RESPONSES": "Canned Responses",
+    "SOURCE_AVATARS": "Avatars",
+    
+    "BY_TYPE_TITLE": "Storage by File Type",
+    "BY_TYPE_SUBTITLE": "Breakdown of storage by content type",
+    
+    "ACTIONS_TITLE": "Cleanup Actions",
+    "ACTIONS_SUBTITLE": "Optimize your storage with these actions",
+    
+    "CLEANUP_ORPHANS_TITLE": "Clean Up Orphan Files",
+    "CLEANUP_ORPHANS_DESC": "Remove files that are no longer referenced by any messages or responses (safe operation)",
+    "CLEANUP_ACTION": "Clean Up",
+    "CLEANUP_CONFIRM": "Are you sure you want to delete {count} orphan files ({size})? This action cannot be undone.",
+    "CLEANUP_SUCCESS": "Successfully cleaned up {count} orphan files and freed {size}",
+    "CLEANUP_ERROR": "Failed to cleanup orphan files. Please try again.",
+    
+    "VIEW_DUPLICATES_TITLE": "View Duplicate Files",
+    "VIEW_DUPLICATES_DESC": "See which files are duplicated in your storage",
+    "VIEW_ACTION": "View Duplicates",
+    
+    "DEDUPLICATE_TITLE": "Deduplicate Files",
+    "DEDUPLICATE_DESC": "Remove duplicate files and update references (requires backup)",
+    "DEDUPLICATE_ACTION": "Deduplicate",
+    "DEDUPLICATE_CONFIRM": "Are you sure you want to deduplicate {files} duplicate files ({size})? Make sure you have a database backup first. This action cannot be undone.",
+    "DEDUPLICATE_SUCCESS": "Successfully deduplicated {count} files and saved {size}",
+    "DEDUPLICATE_ERROR": "Failed to deduplicate files. Please try again.",
+    
+    "DUPLICATES_LIST_TITLE": "Duplicate Files",
+    "DUPLICATES_LIST_SUBTITLE": "Showing top {count} duplicate file groups",
+    
+    "LARGEST_FILES_TITLE": "Largest Files",
+    "LARGEST_FILES_SUBTITLE": "Files that consume the most storage in your account",
+    "LARGEST_FILES_ACTION": "View Large Files",
+    "LARGEST_FILES_ERROR": "Failed to load largest files. Please try again.",
+    "FILE_IS_DUPLICATE": "Duplicate ({count} copies)",
+    "FILE_CREATED": "Created:",
+
+    "CONTENT_TYPE_COUNT": "{count} files",
+    "SEPARATOR": "·",
+    "SOURCE_DEFAULT": "Other",
+    "SOURCE_AVATARS": "Avatars",
+
+    "FILES_LABEL": "files",
+    "COPIES": "copies",
+    "TOTAL": "total",
+    "WASTED": "wasted"
+  }
+}
