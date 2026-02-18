@@ -465,15 +465,21 @@ const nodeCreators = {
     from,
     to,
   }),
-  cannedResponse: (editorView, content, from, to, variables) => {
+  cannedResponse: (editorView, content, from, to, variables, contentType) => {
     const updatedMessage = replaceVariablesInMessage({
       message: content,
       variables,
     });
-    const node = createNode(editorView, 'cannedResponse', updatedMessage);
+    
+    // Check content type: if plain_text, insert as text node; otherwise parse as markdown
+    const type = contentType || 'markdown';
+    const node = type === 'plain_text'
+      ? editorView.state.schema.text(updatedMessage)
+      : createNode(editorView, 'cannedResponse', updatedMessage);
+    
     return {
       node,
-      from: node.textContent === updatedMessage ? from : from - 1,
+      from: type === 'plain_text' ? from : (node.textContent === updatedMessage ? from : from - 1),
       to,
     };
   },
@@ -501,6 +507,7 @@ const nodeCreators = {
  * @param {string|Object} content - The content to be transformed into a node.
  * @param {Object} range - An object containing 'from' and 'to' properties indicating the range in the document where the node should be placed.
  * @param {Object} variables - Optional. Variables to replace in the content, used for 'cannedResponse' type.
+ * @param {string} contentType - Optional. Content type for canned responses ('markdown' or 'plain_text').
  * @returns {Object} - An object containing the created node and the updated 'from' and 'to' positions.
  */
 export const getContentNode = (
@@ -508,11 +515,12 @@ export const getContentNode = (
   type,
   content,
   { from, to },
-  variables
+  variables,
+  contentType
 ) => {
   const creator = nodeCreators[type];
   return creator
-    ? creator(editorView, content, from, to, variables)
+    ? creator(editorView, content, from, to, variables, contentType)
     : { node: null, from, to };
 };
 

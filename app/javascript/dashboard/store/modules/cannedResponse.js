@@ -2,6 +2,7 @@ import { throwErrorMessage } from 'dashboard/store/utils/api';
 import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import * as types from '../mutation-types';
 import CannedResponseAPI from '../../api/cannedResponse';
+import { uploadFile } from 'dashboard/helper/uploadHelper';
 
 const state = {
   records: [],
@@ -40,7 +41,8 @@ const actions = {
     commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: true });
     try {
       const response = await CannedResponseAPI.get({ searchKey });
-      commit(types.default.SET_CANNED, response.data);
+      // For index, response is { payload: [...] }
+      commit(types.default.SET_CANNED, response.data.payload || response.data);
       commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: false });
     } catch (error) {
       commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: false });
@@ -54,9 +56,11 @@ const actions = {
     commit(types.default.SET_CANNED_UI_FLAG, { creatingItem: true });
     try {
       const response = await CannedResponseAPI.create(cannedObj);
-      commit(types.default.ADD_CANNED, response.data);
+      // For create/update, jbuilder returns { payload: {...} }
+      const payload = response.data.payload || response.data;
+      commit(types.default.ADD_CANNED, payload);
       commit(types.default.SET_CANNED_UI_FLAG, { creatingItem: false });
-      return response.data;
+      return payload;
     } catch (error) {
       commit(types.default.SET_CANNED_UI_FLAG, { creatingItem: false });
       return throwErrorMessage(error);
@@ -70,9 +74,10 @@ const actions = {
     commit(types.default.SET_CANNED_UI_FLAG, { updatingItem: true });
     try {
       const response = await CannedResponseAPI.update(id, updateObj);
-      commit(types.default.EDIT_CANNED, response.data);
+      const payload = response.data.payload || response.data;
+      commit(types.default.EDIT_CANNED, payload);
       commit(types.default.SET_CANNED_UI_FLAG, { updatingItem: false });
-      return response.data;
+      return payload;
     } catch (error) {
       commit(types.default.SET_CANNED_UI_FLAG, { updatingItem: false });
       return throwErrorMessage(error);
@@ -90,6 +95,11 @@ const actions = {
       commit(types.default.SET_CANNED_UI_FLAG, { deletingItem: true });
       return throwErrorMessage(error);
     }
+  },
+
+  uploadAttachment: async (_, file) => {
+    const { blobId } = await uploadFile(file);
+    return blobId;
   },
 };
 

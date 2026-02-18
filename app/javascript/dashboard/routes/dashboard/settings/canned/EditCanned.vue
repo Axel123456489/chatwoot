@@ -6,18 +6,25 @@ import { useAlert } from 'dashboard/composables';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Modal from '../../../../components/Modal.vue';
+import FilePreviewInput from 'dashboard/components/widgets/FilePreviewInput.vue';
 
 export default {
   components: {
     NextButton,
     Modal,
     WootMessageEditor,
+    FilePreviewInput,
   },
   props: {
     id: { type: Number, default: null },
     edcontent: { type: String, default: '' },
     edshortCode: { type: String, default: '' },
+    edcontentType: { type: String, default: 'markdown' },
     onClose: { type: Function, default: () => {} },
+    // Array of initial files: [{ filename, blob_id }]
+    initialFiles: { type: Array, default: () => [] },
+    // Initial selected custom role id for visibility (null/empty => visible to all)
+    initialCustomRoleId: { type: [Number, String], default: null },
   },
   setup() {
     return { v$: useVuelidate() };
@@ -30,6 +37,10 @@ export default {
       },
       shortCode: this.edshortCode,
       content: this.edcontent,
+      contentType: this.edcontentType || 'markdown',
+      attachmentIds: (this.initialFiles || []).map(f => f.blob_id),
+      // Selected role id for visibility. Empty string means visible to all roles
+      selectedRoleId: this.initialCustomRoleId || '',
       show: true,
     };
   },
@@ -46,6 +57,22 @@ export default {
     pageTitle() {
       return `${this.$t('CANNED_MGMT.EDIT.TITLE')} - ${this.edshortCode}`;
     },
+    // Current account id used for feature flag checks
+    accountId() {
+      return this.$store.getters.getCurrentAccountId;
+    },
+    // Whether custom roles feature is enabled on the current account
+    isCustomRolesEnabled() {
+      const isFeatureEnabled =
+        this.$store.getters['accounts/isFeatureEnabledonAccount'];
+      return typeof isFeatureEnabled === 'function'
+        ? isFeatureEnabled(this.accountId, 'custom_roles')
+        : false;
+    },
+    // List of available custom roles
+    customRoles() {
+      return this.$store.getters['customRole/getCustomRoles'] || [];
+    },
   },
   methods: {
     setPageName({ name }) {
@@ -55,6 +82,9 @@ export default {
     resetForm() {
       this.shortCode = '';
       this.content = '';
+      this.contentType = 'markdown';
+      this.attachmentIds = [];
+      this.selectedRoleId = '';
       this.v$.shortCode.$reset();
       this.v$.content.$reset();
     },
@@ -67,11 +97,17 @@ export default {
           id: this.id,
           short_code: this.shortCode,
           content: this.content,
+          content_type: this.contentType,
+          blob_ids: this.attachmentIds,
+          // Always include custom_role_id in updates so user can also clear it (set to null for All)
+          custom_role_id: this.selectedRoleId ? this.selectedRoleId : null,
         })
         .then(() => {
           // Reset Form, Show success message
           this.editCanned.showLoading = false;
           useAlert(this.$t('CANNED_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+          // Refresh the canned responses list to get updated file data
+          this.$store.dispatch('getCannedResponse');
           this.resetForm();
           setTimeout(() => {
             this.onClose();
@@ -105,16 +141,42 @@ export default {
           </label>
         </div>
 
+        <div class="w-full mt-2">
+          <label>
+            {{ $t('CANNED_MGMT.EDIT.FORM.CONTENT_TYPE.LABEL') }}
+            <select v-model="contentType">
+              <option value="markdown">
+                {{ $t('CANNED_MGMT.EDIT.FORM.CONTENT_TYPE.MARKDOWN') }}
+              </option>
+              <option value="plain_text">
+                {{ $t('CANNED_MGMT.EDIT.FORM.CONTENT_TYPE.PLAIN_TEXT') }}
+              </option>
+            </select>
+          </label>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+            {{ $t('CANNED_MGMT.EDIT.FORM.CONTENT_TYPE.HELP') }}
+          </p>
+        </div>
+
         <div class="w-full">
           <label :class="{ error: v$.content.$error }">
             {{ $t('CANNED_MGMT.EDIT.FORM.CONTENT.LABEL') }}
           </label>
-          <div class="editor-wrap">
+          <div v-if="contentType === 'plain_text'" class="editor-wrap">
+            <textarea
+              v-model="content"
+              rows="8"
+              class="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              :class="{ 'border-red-500': v$.content.$error }"
+              :placeholder="$t('CANNED_MGMT.EDIT.FORM.CONTENT.PLACEHOLDER')"
+              @blur="v$.content.$touch"
+            />
+          </div>
+          <div v-else class="editor-wrap">
             <WootMessageEditor
               v-model="content"
               class="message-editor [&>div]:px-1"
               :class="{ editor_warning: v$.content.$error }"
-              channel-type="Context::Default"
               enable-variables
               :enable-canned-responses="false"
               :placeholder="$t('CANNED_MGMT.EDIT.FORM.CONTENT.PLACEHOLDER')"
@@ -122,6 +184,42 @@ export default {
             />
           </div>
         </div>
+
+        <!-- Custom role visibility selector (shown only when feature enabled and roles exist) -->
+        <div
+          v-if="isCustomRolesEnabled && customRoles.length"
+          class="w-full mt-2"
+        >
+          <label>
+            {{ $t('CANNED_MGMT.ROLE_VISIBILITY.LABEL') }}
+            <select v-model="selectedRoleId">
+              <option value="">
+                {{ $t('CANNED_MGMT.ROLE_VISIBILITY.ALL') }}
+              </option>
+              <option
+                v-for="role in customRoles"
+                :key="role.id"
+                :value="role.id"
+              >
+                {{ role.name }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="w-full mt-2">
+          <label>
+            {{
+              $t('CANNED_MGMT.EDIT.FORM.ATTACHMENTS_LABEL') ||
+              $t('AUTOMATION.ATTACHMENT.LABEL_IDLE')
+            }}
+          </label>
+          <FilePreviewInput
+            v-model="attachmentIds"
+            :initial-files="initialFiles"
+          />
+        </div>
+
         <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
           <NextButton
             faded

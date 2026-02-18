@@ -60,9 +60,10 @@ RSpec.describe 'Canned Responses API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:agent) { create(:user, account: account, role: :agent) }
+      let(:custom_role) { create(:custom_role, account: account) }
 
-      it 'creates a new canned response' do
-        params = { short_code: 'short', content: 'content' }
+      it 'creates a new canned response with custom_role_id' do
+        params = { short_code: 'short', content: 'content', custom_role_id: custom_role.id }
 
         post "/api/v1/accounts/#{account.id}/canned_responses",
              params: params,
@@ -71,6 +72,7 @@ RSpec.describe 'Canned Responses API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(account.canned_responses.count).to eq(2)
+        expect(account.canned_responses.last.custom_role_id).to eq(custom_role.id)
       end
     end
   end
@@ -88,9 +90,10 @@ RSpec.describe 'Canned Responses API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:agent) { create(:user, account: account, role: :agent) }
+      let(:custom_role) { create(:custom_role, account: account) }
 
-      it 'updates an existing canned response' do
-        params = { short_code: 'B' }
+      it 'updates an existing canned response with custom_role_id' do
+        params = { short_code: 'B', custom_role_id: custom_role.id }
 
         put "/api/v1/accounts/#{account.id}/canned_responses/#{canned_response.id}",
             params: params,
@@ -99,6 +102,22 @@ RSpec.describe 'Canned Responses API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(canned_response.reload.short_code).to eq('B')
+        expect(canned_response.reload.custom_role_id).to eq(custom_role.id)
+      end
+
+      it 'clears custom_role_id when set to null' do
+        # First set a custom role
+        canned_response.update!(custom_role_id: custom_role.id)
+
+        params = { custom_role_id: nil }
+
+        put "/api/v1/accounts/#{account.id}/canned_responses/#{canned_response.id}",
+            params: params,
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(canned_response.reload.custom_role_id).to be_nil
       end
     end
   end

@@ -5,5 +5,6 @@ FactoryBot.define do
     content { 'Content' }
     sequence(:short_code) { |n| "CODE#{n}" }
     account
+    custom_role { nil } # Optional association with custom_role
   end
 end
