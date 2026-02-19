@@ -8,10 +8,20 @@ module FileTypeHelper
     :file
   end
 
-  # Used in case of DIRECT_UPLOADS_ENABLED=true
-  def file_type_by_signed_id(signed_id)
-    blob = ActiveStorage::Blob.find_signed(signed_id)
+  # Used in case of DIRECT_UPLOADS_ENABLED=true or when referencing existing blobs (e.g., from canned responses)
+  # Supports both signed_id (string) and numeric blob_id
+  def file_type_by_signed_id(identifier)
+    blob = if /\A\d+\z/.match?(identifier.to_s)
+             # Numeric blob_id
+             ActiveStorage::Blob.find_by(id: identifier)
+           else
+             # Signed ID
+             ActiveStorage::Blob.find_signed(identifier)
+           end
     file_type(blob&.content_type)
+  rescue StandardError => e
+    Rails.logger.warn("[FileTypeHelper] Failed to determine file type for identifier=#{identifier}: #{e.class} #{e.message}")
+    :file
   end
 
   def image_file?(content_type)

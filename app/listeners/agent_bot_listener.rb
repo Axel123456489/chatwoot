@@ -3,7 +3,13 @@ class AgentBotListener < BaseListener
     conversation = extract_conversation_and_account(event)[0]
     inbox = conversation.inbox
     agent_bots_for(inbox, conversation).each do |agent_bot|
-      integration_for(agent_bot).conversation_updated(conversation, event)
+      # Use new workflow integration if available
+      if use_workflow_integration?(agent_bot)
+        workflow_integration = agent_bot.workflow_integration
+        WorkflowIntegrations::Executor.new(workflow_integration).handle_status_change(conversation, event)
+      else
+        integration_for(agent_bot).conversation_updated(conversation, event)
+      end
     end
   end
 
@@ -37,7 +43,13 @@ class AgentBotListener < BaseListener
     return unless message.webhook_sendable?
 
     agent_bots_for(inbox, message.conversation).each do |agent_bot|
-      integration_for(agent_bot).message_created(message, event)
+      # Use new workflow integration if available
+      if use_workflow_integration?(agent_bot)
+        workflow_integration = agent_bot.workflow_integration
+        WorkflowIntegrations::Executor.new(workflow_integration).handle_message(message)
+      else
+        integration_for(agent_bot).message_created(message, event)
+      end
     end
   end
 
@@ -86,5 +98,9 @@ class AgentBotListener < BaseListener
   def n8n_native_bot?(agent_bot)
     flag = agent_bot&.bot_config&.dig('n8n_native')
     ActiveRecord::Type::Boolean.new.cast(flag) == true
+  end
+
+  def use_workflow_integration?(agent_bot)
+    agent_bot.workflow_integration.present? && agent_bot.workflow_integration.enabled?
   end
 end

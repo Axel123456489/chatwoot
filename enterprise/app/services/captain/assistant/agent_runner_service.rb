@@ -1,5 +1,4 @@
 require 'agents'
-require 'agents/instrumentation'
 
 class Captain::Assistant::AgentRunnerService
   include Integrations::LlmInstrumentationConstants
@@ -132,6 +131,7 @@ class Captain::Assistant::AgentRunnerService
 
   def install_instrumentation(runner)
     return unless ChatwootApp.otel_enabled?
+    return unless defined?(Agents::Instrumentation)
 
     Agents::Instrumentation.install(
       runner,
@@ -142,6 +142,8 @@ class Captain::Assistant::AgentRunnerService
       },
       attribute_provider: ->(context_wrapper) { dynamic_trace_attributes(context_wrapper) }
     )
+  rescue StandardError => e
+    Rails.logger.warn "[Captain V2] Failed to install instrumentation: #{e.message}"
   end
 
   def dynamic_trace_attributes(context_wrapper)

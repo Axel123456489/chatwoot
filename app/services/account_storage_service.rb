@@ -5,30 +5,60 @@
 class AccountStorageService
   attr_reader :account
 
+  # Timeout for long-running queries (10 minutes)
+  QUERY_TIMEOUT = 600_000 # milliseconds
+  # Batch size for processing large datasets
+  BATCH_SIZE = 1000
+
   def initialize(account)
     @account = account
+  end
+
+  # Execute query with timeout to prevent hanging on large datasets
+  def with_timeout(&block)
+    ActiveRecord::Base.connection.execute("SET LOCAL statement_timeout = #{QUERY_TIMEOUT}")
+    result = block.call
+    ActiveRecord::Base.connection.execute('SET LOCAL statement_timeout = DEFAULT')
+    result
+  rescue ActiveRecord::StatementInvalid => e
+    ActiveRecord::Base.connection.execute('SET LOCAL statement_timeout = DEFAULT')
+    raise e if e.message.include?('statement timeout')
+
+    raise
   end
 
   # Analyze storage usage for the account
   # @return [Hash] Storage statistics
   def analyze
-    {
-      overview: storage_overview,
-      by_content_type: storage_by_content_type,
-      orphan_blobs: orphan_blob_stats,
-      duplicates: duplicate_stats,
-      by_source: storage_by_source
-    }
+    with_timeout do
+      {
+        overview: storage_overview,
+        by_content_type: storage_by_content_type,
+        orphan_blobs: orphan_blob_stats,
+        duplicates: duplicate_stats,
+        by_source: storage_by_source
+      }
+    end
   end
 
   # Clean orphan blobs (blobs without attachments) for this account
   # @return [Hash] Cleanup statistics
+  # Optimized for large datasets - processes in batches
   def cleanup_orphan_blobs
     orphan_blobs = find_orphan_blobs
     count = orphan_blobs.count
     size = orphan_blobs.sum(:byte_size)
 
-    orphan_blobs.find_each(&:purge)
+    Rails.logger.info("[StorageCleanup] Starting cleanup of #{count} orphan blobs (#{size} bytes) for account #{account.id}")
+
+    cleaned = 0
+    orphan_blobs.find_each(batch_size: BATCH_SIZE) do |blob|
+      blob.purge
+      cleaned += 1
+      Rails.logger.info("[StorageCleanup] Progress: #{cleaned}/#{count}") if (cleaned % 100).zero?
+    end
+
+    Rails.logger.info("[StorageCleanup] Completed: #{cleaned} blobs purged")
 
     {
       cleaned_count: count,
@@ -39,15 +69,29 @@ class AccountStorageService
   # Deduplicate files for this account
   # @return [Hash] Deduplication statistics
   def deduplicate_files
-    stats = { deduplicated_count: 0, space_saved: 0 }
+    with_timeout do
+      stats = { deduplicated_count: 0, space_saved: 0 }
+      checksums = duplicate_checksums
+      total = checksums.size
 
-    duplicate_checksums.each do |checksum|
-      result = deduplicate_by_checksum(checksum)
-      stats[:deduplicated_count] += result[:count]
-      stats[:space_saved] += result[:space_saved]
+      Rails.logger.info("[Storage] Found #{total} duplicate checksum groups to deduplicate")
+
+      checksums.each_with_index do |checksum, index|
+        result = deduplicate_by_checksum(checksum)
+        stats[:deduplicated_count] += result[:count]
+        stats[:space_saved] += result[:space_saved]
+
+        # Log progress every 10 checksums or at completion
+        if (index + 1) % 10 == 0 || (index + 1) == total
+          Rails.logger.info("[Storage] Deduplicated #{index + 1}/#{total} checksum groups, " \
+                           "saved #{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB so far")
+        end
+      end
+
+      Rails.logger.info("[Storage] Deduplication complete: #{stats[:deduplicated_count]} files, " \
+                       "#{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB saved")
+      stats
     end
-
-    stats
   end
 
   # Find duplicate files by checksum
@@ -113,9 +157,22 @@ class AccountStorageService
   private
 
   # Get storage overview statistics
+  # Optimized for large datasets - uses single query with CTEs
   def storage_overview
-    blobs = account_blob_ids_query
+    sql = <<-SQL.squish
+      WITH account_blobs AS (
+        #{account_blob_ids_query.to_sql}
+      )
+      SELECT
+        COUNT(DISTINCT ab.id) as total_blobs,
+        COALESCE(SUM(asb.byte_size), 0) as total_size
+      FROM account_blobs ab
+      INNER JOIN active_storage_blobs asb ON asb.id = ab.id
+    SQL
 
+    result = ActiveRecord::Base.connection.select_one(sql)
+
+    # Count attachments separately (faster than joining everything)
     message_attachments_count = Attachment.where(
       message_id: Message.joins(:conversation)
                          .where(conversations: { account_id: account.id })
@@ -141,8 +198,8 @@ class AccountStorageService
                            .count
 
     {
-      total_blobs: blobs.count,
-      total_size: ActiveStorage::Blob.where(id: blobs).sum(:byte_size),
+      total_blobs: result['total_blobs'].to_i,
+      total_size: result['total_size'].to_i,
       total_attachments: message_attachments_count + canned_attachments_count + user_avatar_count + contact_avatar_count
     }
   end
@@ -350,6 +407,8 @@ class AccountStorageService
     count = 0
     space_saved = 0
 
+    Rails.logger.debug("[Storage] Deduplicating checksum #{checksum}: #{duplicate_blobs.count} duplicates of master blob ##{master_blob.id}")
+
     # Keep message attachment IDs as subquery (no pluck)
     attachment_ids = Attachment.where(
       message_id: Message.joins(:conversation)
@@ -447,6 +506,7 @@ class AccountStorageService
       duplicate_blob.purge if duplicate_blob.attachments.reload.empty?
     end
 
+    Rails.logger.debug("[Storage] Checksum #{checksum} deduplication complete: #{count} files, #{(space_saved.to_f / 1.megabyte).round(2)} MB")
     { count: count, space_saved: space_saved }
   end
   # rubocop:enable Metrics/BlockLength

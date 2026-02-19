@@ -1036,7 +1036,11 @@ export default {
       if (this.attachedFiles && this.attachedFiles.length) {
         messagePayload.files = [];
         this.attachedFiles.forEach(attachment => {
-          if (this.globalConfig.directUploadsEnabled) {
+          // Prefer blobSignedId (from canned responses or direct uploads)
+          // Fall back to uploaded file only if no blob reference exists
+          if (attachment.blobSignedId) {
+            messagePayload.files.push(attachment.blobSignedId);
+          } else if (this.globalConfig.directUploadsEnabled) {
             messagePayload.files.push(attachment.blobSignedId);
           } else {
             messagePayload.files.push(attachment.resource.file);
@@ -1129,43 +1133,10 @@ export default {
     async handleCannedResponseAttachments(files) {
       if (!files || !files.length) return;
 
-      const downloadAndUpload = async file => {
-        try {
-          const response = await fetch(file.file_url, {
-            credentials: 'include',
-          });
-          if (!response.ok) {
-            throw new Error(`fetch failed: ${response.status}`);
-          }
-          const downloaded = await response.blob();
-          const fileObject = new File([downloaded], file.filename, {
-            type: file.file_type || downloaded.type,
-          });
-          const uploadPayload = {
-            name: file.filename,
-            type: file.file_type || downloaded.type,
-            size: downloaded.size,
-            file: fileObject,
-          };
-          this.onFileUpload(uploadPayload);
-        } catch (error) {
-          // Log error silently if Sentry is not available
-          if (window.Sentry) {
-            window.Sentry.captureException(error);
-          } else {
-            // eslint-disable-next-line no-console
-            console.error(
-              'Failed to download/upload canned response attachment:',
-              error
-            );
-          }
-        }
-      };
-
-      const shouldAttachBySignedId = this.globalConfig.directUploadsEnabled;
-
-      const downloadTasks = [];
+      // Optimized: Always use blob references instead of downloading/re-uploading
+      // This avoids unnecessary bandwidth usage and storage duplication
       files.forEach(file => {
+        // Check if this attachment is already in the list
         const alreadyAttached = this.attachedFiles.some(
           att =>
             att.blobSignedId === file.signed_id ||
@@ -1173,19 +1144,25 @@ export default {
         );
         if (alreadyAttached) return;
 
-        if (shouldAttachBySignedId && file.signed_id) {
+        // Use signed_id if available, otherwise fall back to blob_id
+        if (file.signed_id || file.blob_id) {
           this.addCannedAttachmentFromSignedId(file);
         } else {
-          downloadTasks.push(downloadAndUpload(file));
+          // Only log a warning if neither ID is available
+          // eslint-disable-next-line no-console
+          console.warn(
+            'Canned response attachment missing both signed_id and blob_id:',
+            file
+          );
         }
       });
-
-      if (downloadTasks.length) {
-        await Promise.all(downloadTasks);
-      }
     },
     addCannedAttachmentFromSignedId(file) {
-      if (!file || !file.signed_id) return;
+      if (!file) return;
+
+      // Use signed_id if available, otherwise use blob_id as string
+      const blobReference = file.signed_id || file.blob_id?.toString();
+      if (!blobReference) return;
 
       const resource = {
         filename: file.filename || '',
@@ -1198,7 +1175,7 @@ export default {
         resource,
         isPrivate: this.isPrivate,
         thumb: file.file_url,
-        blobSignedId: file.signed_id,
+        blobSignedId: blobReference,
         isRecordedAudio: false,
       });
     },

@@ -106,6 +106,7 @@ Rails.application.routes.draw do
           
           # Storage management
           get 'storage/analyze', to: 'storage#analyze'
+          get 'storage/status', to: 'storage#status'
           get 'storage/duplicates', to: 'storage#duplicates'
           get 'storage/largest_files', to: 'storage#largest_files'
           post 'storage/cleanup_orphans', to: 'storage#cleanup_orphans'
@@ -424,6 +425,13 @@ Rails.application.routes.draw do
       namespace :integrations do
         resources :webhooks, only: [:create]
         post 'n8n/switch_flow', to: 'integrations/n8n#switch_flow'
+        
+        # Workflow integrations (new architecture)
+        scope :workflows do
+          get 'executions', to: 'integrations/workflows#executions'
+          post 'cancel_execution', to: 'integrations/workflows#cancel_execution'
+          post 'switch_execution', to: 'integrations/workflows#switch_execution'
+        end
       end
 
       # Frontend API endpoint to trigger SAML authentication flow

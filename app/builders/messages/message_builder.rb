@@ -51,19 +51,42 @@ class Messages::MessageBuilder
     return if @attachments.blank?
 
     @attachments.each do |uploaded_attachment|
-      attachment = @message.attachments.build(
-        account_id: @message.account_id,
-        file: uploaded_attachment
-      )
-
-      attachment.file_type = if uploaded_attachment.is_a?(String)
-                               file_type_by_signed_id(
-                                 uploaded_attachment
-                               )
-                             else
-                               file_type(uploaded_attachment&.content_type)
-                             end
+      # Handle blob references (signed_id or numeric blob_id)
+      if uploaded_attachment.is_a?(String)
+        blob = resolve_blob_from_identifier(uploaded_attachment)
+        
+        if blob
+          attachment = @message.attachments.build(
+            account_id: @message.account_id,
+            file: blob
+          )
+          attachment.file_type = file_type(blob.content_type)
+        else
+          Rails.logger.warn("[MessageBuilder] Could not resolve blob for identifier: #{uploaded_attachment}")
+        end
+      else
+        # Handle regular uploaded file
+        attachment = @message.attachments.build(
+          account_id: @message.account_id,
+          file: uploaded_attachment
+        )
+        attachment.file_type = file_type(uploaded_attachment&.content_type)
+      end
     end
+  end
+
+  # Resolves a blob from either a signed_id or numeric blob_id
+  def resolve_blob_from_identifier(identifier)
+    if /\A\d+\z/.match?(identifier.to_s)
+      # Numeric blob_id
+      ActiveStorage::Blob.find_by(id: identifier)
+    else
+      # Signed ID
+      ActiveStorage::Blob.find_signed(identifier)
+    end
+  rescue ActiveSupport::MessageVerifier::InvalidSignature, ArgumentError => e
+    Rails.logger.warn("[MessageBuilder] Invalid blob identifier #{identifier}: #{e.message}")
+    nil
   end
 
   def process_emails

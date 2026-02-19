@@ -33,6 +33,7 @@ class AgentBot < ApplicationRecord
                                     foreign_key: :assignee_agent_bot_id,
                                     dependent: :nullify,
                                     inverse_of: :assignee_agent_bot
+  has_one :workflow_integration, dependent: :destroy
   belongs_to :account, optional: true
   enum bot_type: { webhook: 0 }
 
