@@ -32,23 +32,32 @@
 #
 # Indexes
 #
-#  conv_acid_inbid_stat_asgnid_idx                    (account_id,inbox_id,status,assignee_id)
-#  index_conversations_on_account_id                  (account_id)
-#  index_conversations_on_account_id_and_display_id   (account_id,display_id) UNIQUE
-#  index_conversations_on_assignee_id_and_account_id  (assignee_id,account_id)
-#  index_conversations_on_campaign_id                 (campaign_id)
-#  index_conversations_on_contact_id                  (contact_id)
-#  index_conversations_on_contact_inbox_id            (contact_inbox_id)
-#  index_conversations_on_first_reply_created_at      (first_reply_created_at)
-#  index_conversations_on_id_and_account_id           (account_id,id)
-#  index_conversations_on_identifier_and_account_id   (identifier,account_id)
-#  index_conversations_on_inbox_id                    (inbox_id)
-#  index_conversations_on_priority                    (priority)
-#  index_conversations_on_status_and_account_id       (status,account_id)
-#  index_conversations_on_status_and_priority         (status,priority)
-#  index_conversations_on_team_id                     (team_id)
-#  index_conversations_on_uuid                        (uuid) UNIQUE
-#  index_conversations_on_waiting_since               (waiting_since)
+#  conv_acid_inbid_stat_asgnid_idx                                 (account_id,inbox_id,status,assignee_id)
+#  index_conversations_on_account_assignee_status_activity_open    (account_id,assignee_id,status,last_activity_at DESC) WHERE ((status = ANY (ARRAY[0, 2, 3])) AND (assignee_id IS NOT NULL))
+#  index_conversations_on_account_id                               (account_id)
+#  index_conversations_on_account_id_and_display_id                (account_id,display_id) UNIQUE
+#  index_conversations_on_account_inbox_status_activity_open       (account_id,inbox_id,status,last_activity_at DESC) WHERE (status = ANY (ARRAY[0, 2, 3]))
+#  index_conversations_on_account_status_activity_unassigned_open  (account_id,status,last_activity_at DESC) WHERE ((status = ANY (ARRAY[0, 2, 3])) AND (assignee_id IS NULL))
+#  index_conversations_on_account_status_last_activity             (account_id,status,last_activity_at)
+#  index_conversations_on_account_status_last_activity_open        (account_id,status,last_activity_at DESC) WHERE (status = ANY (ARRAY[0, 2, 3]))
+#  index_conversations_on_assignee_account_status_activity         (assignee_id,account_id,status,last_activity_at)
+#  index_conversations_on_assignee_id_and_account_id               (assignee_id,account_id)
+#  index_conversations_on_campaign_id                              (campaign_id)
+#  index_conversations_on_contact_id                               (contact_id)
+#  index_conversations_on_contact_inbox_id                         (contact_inbox_id)
+#  index_conversations_on_first_reply_created_at                   (first_reply_created_at)
+#  index_conversations_on_id_and_account_id                        (account_id,id)
+#  index_conversations_on_identifier_and_account_id                (identifier,account_id)
+#  index_conversations_on_inbox_id                                 (inbox_id)
+#  index_conversations_on_inbox_status_activity                    (inbox_id,status,last_activity_at)
+#  index_conversations_on_priority                                 (priority)
+#  index_conversations_on_status_and_account_id                    (status,account_id)
+#  index_conversations_on_status_and_priority                      (status,priority)
+#  index_conversations_on_team_id                                  (team_id)
+#  index_conversations_on_team_status_activity                     (team_id,status,last_activity_at) WHERE (team_id IS NOT NULL)
+#  index_conversations_on_unassigned_account_status_activity       (account_id,status,last_activity_at) WHERE (assignee_id IS NULL)
+#  index_conversations_on_uuid                                     (uuid) UNIQUE
+#  index_conversations_on_waiting_since                            (waiting_since)
 #
 
 class Conversation < ApplicationRecord

@@ -3,6 +3,8 @@
 # Table name: channel_whatsapp
 #
 #  id                             :bigint           not null, primary key
+#  calling_config                 :jsonb
+#  calling_enabled                :boolean          default(FALSE)
 #  message_templates              :jsonb
 #  message_templates_last_updated :datetime
 #  phone_number                   :string           not null

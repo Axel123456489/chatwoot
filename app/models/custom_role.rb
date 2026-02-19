@@ -1,5 +1,21 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: custom_roles
+#
+#  id          :bigint           not null, primary key
+#  description :string
+#  name        :string
+#  permissions :text             default([]), is an Array
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  account_id  :bigint           not null
+#
+# Indexes
+#
+#  index_custom_roles_on_account_id  (account_id)
+#
 # Shim to ensure CustomRole is autoloadable in OSS runs where enterprise models
 # live under enterprise/app/models. If the enterprise file is unavailable (e.g.
 # stripped in OSS CI), fall back to a minimal stub so associations load.

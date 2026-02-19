@@ -4,16 +4,30 @@
 #
 # Table name: workflow_integrations
 #
-# Specific to N8n workflow automation platform
+#  id           :bigint           not null, primary key
+#  config       :jsonb            not null
+#  enabled      :boolean          default(TRUE), not null
+#  metadata     :jsonb            not null
+#  status       :string           default("active"), not null
+#  type         :string           not null
+#  version      :string           default("1.0")
+#  webhook_url  :string           not null
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  agent_bot_id :bigint           not null
 #
-# Config structure:
-# {
-#   start_on_new_conversation: boolean (default: true)
-#   start_on_reopen: boolean (default: true)
-#   start_on_manual_pending: boolean (default: true)
-#   start_on_contact_pending: boolean (default: false)
-#   triggers_version: integer (default: 2)
-# }
+# Indexes
+#
+#  index_workflow_integrations_on_agent_bot_id  (agent_bot_id)
+#  index_workflow_integrations_on_enabled       (enabled)
+#  index_workflow_integrations_on_status        (status)
+#  index_workflow_integrations_on_type          (type)
+#  index_workflow_integrations_unique_bot_type  (agent_bot_id,type) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (agent_bot_id => agent_bots.id)
+#
 
 module WorkflowIntegrations
   class N8n < WorkflowIntegration

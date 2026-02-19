@@ -4,31 +4,39 @@
 #
 # Table name: workflow_executions
 #
-#  id                        :bigint           not null, primary key
-#  workflow_integration_id   :bigint           not null
-#  conversation_id           :bigint           not null
-#  execution_id              :string           (external workflow ID)
-#  webhook_url               :string
-#  status                    :string           default('pending'), not null
-#  trigger_type              :string           not null
-#  started_at                :datetime
-#  completed_at              :datetime
-#  last_activity_at          :datetime
-#  last_message_id           :bigint
-#  metadata                  :jsonb            default({}), not null
-#  error_message             :text
-#  created_at                :datetime         not null
-#  updated_at                :datetime         not null
+#  id                      :bigint           not null, primary key
+#  completed_at            :datetime
+#  error_message           :text
+#  last_activity_at        :datetime
+#  metadata                :jsonb            not null
+#  started_at              :datetime
+#  status                  :string           default("pending"), not null
+#  trigger_type            :string           not null
+#  webhook_url             :string
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  conversation_id         :bigint           not null
+#  execution_id            :string
+#  last_message_id         :bigint
+#  workflow_integration_id :bigint           not null
 #
 # Indexes
 #
-#  index_workflow_executions_on_workflow_integration_id  (workflow_integration_id)
-#  index_workflow_executions_on_conversation_id          (conversation_id)
-#  index_workflow_executions_on_execution_id             (execution_id)
-#  index_workflow_executions_on_status                   (status)
-#  index_workflow_executions_on_trigger_type             (trigger_type)
-#  index_workflow_executions_conversation_status         (conversation_id, status)
-#  index_workflow_executions_unique_active_per_conversation (conversation_id) UNIQUE WHERE status IN ('pending', 'running')
+#  index_workflow_executions_conversation_status             (conversation_id,status)
+#  index_workflow_executions_on_conversation_id              (conversation_id)
+#  index_workflow_executions_on_execution_id                 (execution_id)
+#  index_workflow_executions_on_last_activity_at             (last_activity_at)
+#  index_workflow_executions_on_started_at                   (started_at)
+#  index_workflow_executions_on_status                       (status)
+#  index_workflow_executions_on_trigger_type                 (trigger_type)
+#  index_workflow_executions_on_workflow_integration_id      (workflow_integration_id)
+#  index_workflow_executions_unique_active_per_conversation  (conversation_id) UNIQUE WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))
+#
+# Foreign Keys
+#
+#  fk_rails_...  (conversation_id => conversations.id)
+#  fk_rails_...  (last_message_id => messages.id)
+#  fk_rails_...  (workflow_integration_id => workflow_integrations.id)
 #
 
 class WorkflowExecution < ApplicationRecord

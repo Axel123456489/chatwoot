@@ -4,31 +4,41 @@
 #
 # Table name: waha_sessions
 #
-#  id                      :bigint           not null, primary key
-#  account_id              :bigint           not null
-#  inbox_id                :bigint           not null
-#  session_name            :string           not null
-#  status                  :string           default("pending"), not null
-#  phone_number            :string
-#  qr_code                 :text
-#  qr_code_generated_at    :datetime
-#  waha_data               :jsonb
-#  debug                   :boolean          default(false)
-#  metadata                :jsonb            default({})
-#  ignore_groups           :boolean          default(false)
-#  ignore_channels         :boolean          default(true)
-#  ignore_status           :boolean          default(true)
-#  ignore_broadcast        :boolean          default(true)
-#  proxy_server            :string
-#  proxy_username          :string
-#  proxy_password          :string
-#  noweb_store_enabled     :boolean          default(true)
-#  noweb_store_full_sync   :boolean          default(false)
-#  created_at              :datetime         not null
-#  updated_at              :datetime         not null
+#  id                    :bigint           not null, primary key
+#  debug                 :boolean          default(FALSE)
+#  ignore_broadcast      :boolean          default(TRUE)
+#  ignore_channels       :boolean          default(TRUE)
+#  ignore_groups         :boolean          default(FALSE)
+#  ignore_status         :boolean          default(TRUE)
+#  metadata              :jsonb
+#  noweb_store_enabled   :boolean          default(TRUE)
+#  noweb_store_full_sync :boolean          default(FALSE)
+#  phone_number          :string
+#  proxy_password        :string
+#  proxy_server          :string
+#  proxy_username        :string
+#  qr_code               :text
+#  qr_code_generated_at  :datetime
+#  session_name          :string           not null
+#  status                :string           default("pending"), not null
+#  waha_data             :jsonb
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  account_id            :bigint           not null
+#  inbox_id              :bigint           not null
 #
-# WahaSession orchestrates WAHA session configuration.
-# Messaging is handled by Channel::Api through WAHA's native Chatwoot App.
+# Indexes
+#
+#  index_waha_sessions_on_account_id               (account_id)
+#  index_waha_sessions_on_account_id_and_inbox_id  (account_id,inbox_id) UNIQUE
+#  index_waha_sessions_on_inbox_id                 (inbox_id)
+#  index_waha_sessions_on_session_name             (session_name) UNIQUE
+#  index_waha_sessions_on_status                   (status)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (inbox_id => inboxes.id)
 #
 
 class WahaSession < ApplicationRecord

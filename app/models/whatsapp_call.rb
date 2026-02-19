@@ -1,5 +1,59 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: whatsapp_calls
+#
+#  id                   :bigint           not null, primary key
+#  accepted_at          :datetime
+#  browser_sdp_offer    :text
+#  call_quality_metrics :jsonb
+#  connected_at         :datetime
+#  direction            :string(20)       not null
+#  duration_seconds     :integer
+#  ended_at             :datetime
+#  initiated_at         :datetime
+#  metadata             :jsonb
+#  recording_enabled    :boolean          default(FALSE)
+#  recording_url        :string
+#  rejection_reason     :string
+#  ringing_at           :datetime
+#  status               :string(30)       default("initiated"), not null
+#  status_reason        :string(100)
+#  whatsapp_sdp_answer  :text
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  accepted_by_user_id  :bigint
+#  account_id           :bigint           not null
+#  call_id              :string           not null
+#  contact_id           :bigint           not null
+#  conversation_id      :bigint           not null
+#  inbox_id             :bigint           not null
+#  initiated_by_user_id :bigint
+#
+# Indexes
+#
+#  index_whatsapp_calls_on_accepted_by_user_id                 (accepted_by_user_id)
+#  index_whatsapp_calls_on_account_id                          (account_id)
+#  index_whatsapp_calls_on_account_id_and_status               (account_id,status)
+#  index_whatsapp_calls_on_call_id                             (call_id) UNIQUE
+#  index_whatsapp_calls_on_contact_id                          (contact_id)
+#  index_whatsapp_calls_on_contact_id_and_created_at           (contact_id,created_at)
+#  index_whatsapp_calls_on_conversation_id                     (conversation_id)
+#  index_whatsapp_calls_on_conversation_id_and_created_at      (conversation_id,created_at)
+#  index_whatsapp_calls_on_inbox_id                            (inbox_id)
+#  index_whatsapp_calls_on_inbox_id_and_created_at_and_status  (inbox_id,created_at,status)
+#  index_whatsapp_calls_on_initiated_by_user_id                (initiated_by_user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (accepted_by_user_id => users.id)
+#  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (contact_id => contacts.id)
+#  fk_rails_...  (conversation_id => conversations.id)
+#  fk_rails_...  (inbox_id => inboxes.id)
+#  fk_rails_...  (initiated_by_user_id => users.id)
+#
 # Model for WhatsApp calls with State Machine
 class WhatsappCall < ApplicationRecord
   include AASM

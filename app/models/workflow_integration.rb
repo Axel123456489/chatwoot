@@ -4,25 +4,29 @@
 #
 # Table name: workflow_integrations
 #
-#  id          :bigint           not null, primary key
-#  type        :string           not null (STI)
-#  agent_bot_id :bigint          not null
-#  webhook_url :string           not null
-#  config      :jsonb            default({}), not null
-#  enabled     :boolean          default(true), not null
-#  status      :string           default('active'), not null
-#  version     :string           default('1.0')
-#  metadata    :jsonb            default({}), not null
-#  created_at  :datetime         not null
-#  updated_at  :datetime         not null
+#  id           :bigint           not null, primary key
+#  config       :jsonb            not null
+#  enabled      :boolean          default(TRUE), not null
+#  metadata     :jsonb            not null
+#  status       :string           default("active"), not null
+#  type         :string           not null
+#  version      :string           default("1.0")
+#  webhook_url  :string           not null
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  agent_bot_id :bigint           not null
 #
 # Indexes
 #
-#  index_workflow_integrations_on_agent_bot_id           (agent_bot_id)
-#  index_workflow_integrations_on_enabled                (enabled)
-#  index_workflow_integrations_on_status                 (status)
-#  index_workflow_integrations_on_type                   (type)
-#  index_workflow_integrations_unique_bot_type           (agent_bot_id, type) UNIQUE
+#  index_workflow_integrations_on_agent_bot_id  (agent_bot_id)
+#  index_workflow_integrations_on_enabled       (enabled)
+#  index_workflow_integrations_on_status        (status)
+#  index_workflow_integrations_on_type          (type)
+#  index_workflow_integrations_unique_bot_type  (agent_bot_id,type) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (agent_bot_id => agent_bots.id)
 #
 
 class WorkflowIntegration < ApplicationRecord
