@@ -5,7 +5,21 @@
     "REFRESH": "Refresh Analysis",
     "ANALYZE_SUCCESS": "Storage analysis completed successfully",
     "ANALYZE_ERROR": "Failed to analyze storage. Please try again.",
+    "ANALYZE_QUEUED": "Storage analysis started in background. This may take a few minutes for large accounts.",
     "DUPLICATES_ERROR": "Failed to load duplicates. Please try again.",
+    
+    "ANALYSIS_IN_PROGRESS": "Analysis in Progress",
+    "ANALYSIS_IN_PROGRESS_DESC": "Storage analysis is currently running in the background. Results will appear automatically when complete.",
+    "ANALYSIS_ERROR_TITLE": "Analysis Failed",
+    "NO_DATA_TITLE": "No Storage Analysis Yet",
+    "NO_DATA_DESC": "Click the button below to start analyzing your storage usage. This only runs when you request it.",
+    "START_ANALYSIS": "Start Analysis",
+    "LAST_ANALYZED": "Last analyzed",
+    "JUST_NOW": "just now",
+    "MINUTES_AGO": "{minutes} minutes ago",
+    "HOURS_AGO": "{hours} hours ago",
+    "DATA_MAY_BE_OUTDATED": "Data may be outdated",
+    "ANALYSIS_TOOK": "Analysis took {seconds}s",
     
     "OVERVIEW_TITLE": "Storage Overview",
     "OVERVIEW_SUBTITLE": "Summary of your account's storage usage",
@@ -34,6 +48,7 @@
     "CLEANUP_ORPHANS_DESC": "Remove files that are no longer referenced by any messages or responses (safe operation)",
     "CLEANUP_ACTION": "Clean Up",
     "CLEANUP_CONFIRM": "Are you sure you want to delete {count} orphan files ({size})? This action cannot be undone.",
+    "CLEANUP_QUEUED": "Cleanup job started. This may take a few minutes...",
     "CLEANUP_SUCCESS": "Successfully cleaned up {count} orphan files and freed {size}",
     "CLEANUP_ERROR": "Failed to cleanup orphan files. Please try again.",
     
@@ -45,6 +60,7 @@
     "DEDUPLICATE_DESC": "Remove duplicate files and update references (requires backup)",
     "DEDUPLICATE_ACTION": "Deduplicate",
     "DEDUPLICATE_CONFIRM": "Are you sure you want to deduplicate {files} duplicate files ({size})? Make sure you have a database backup first. This action cannot be undone.",
+    "DEDUPLICATE_QUEUED": "Deduplication job started. This may take several minutes...",
     "DEDUPLICATE_SUCCESS": "Successfully deduplicated {count} files and saved {size}",
     "DEDUPLICATE_ERROR": "Failed to deduplicate files. Please try again.",
     

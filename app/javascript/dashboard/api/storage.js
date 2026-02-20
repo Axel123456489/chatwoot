@@ -10,6 +10,10 @@ class StorageAPI extends ApiClient {
     return axios.get(`${this.url}/analyze`);
   }
 
+  status() {
+    return axios.get(`${this.url}/status`);
+  }
+
   duplicates(limit = 50) {
     return axios.get(`${this.url}/duplicates`, { params: { limit } });
   }
@@ -22,8 +26,16 @@ class StorageAPI extends ApiClient {
     return axios.post(`${this.url}/cleanup_orphans`);
   }
 
+  cleanupStatus() {
+    return axios.get(`${this.url}/cleanup_status`);
+  }
+
   deduplicate() {
     return axios.post(`${this.url}/deduplicate`);
+  }
+
+  deduplicationStatus() {
+    return axios.get(`${this.url}/deduplication_status`);
   }
 }
 

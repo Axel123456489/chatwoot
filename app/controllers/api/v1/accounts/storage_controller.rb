@@ -64,8 +64,9 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
       analyzed_at: Time.current.iso8601
     }
 
-    # Cache for 1 hour
-    Rails.cache.write(cache_key, result, expires_in: 1.hour)
+    # Cache for 2 hours (same as async analysis)
+    Rails.cache.write(cache_key, result, expires_in: 2.hours)
+    Rails.cache.write("#{cache_key}:status", 'completed', expires_in: 2.hours)
 
     render json: result
   rescue ActiveRecord::StatementInvalid => e
@@ -90,13 +91,24 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   def status
     cache_key = "storage_analysis:#{Current.account.id}"
     status = Rails.cache.read("#{cache_key}:status")
+    cached_result = Rails.cache.read(cache_key)
+    
+    # Si hay datos cacheados pero no hay status (status expiró), considerar como completado
+    if cached_result.present? && status.blank?
+      status = 'completed'
+    end
     
     case status
     when 'in_progress'
       render json: { status: 'in_progress', message: 'Analysis is currently running' }
     when 'completed'
-      cached = Rails.cache.read(cache_key)
-      render json: { status: 'completed', result: cached }
+      # Devolver los datos junto con el status
+      if cached_result.present?
+        render json: { status: 'completed', result: cached_result }
+      else
+        # Los datos expiraron, marcar como not_started
+        render json: { status: 'not_started', message: 'Cached results expired. Run a new analysis.' }
+      end
     when 'timeout'
       error = Rails.cache.read("#{cache_key}:error")
       render json: { status: 'timeout', error: error }, status: :request_timeout
@@ -104,7 +116,12 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
       error = Rails.cache.read("#{cache_key}:error")
       render json: { status: 'failed', error: error }, status: :internal_server_error
     else
-      render json: { status: 'not_started', message: 'No analysis has been run yet' }
+      # No hay status, verificar si hay datos cacheados de todas formas
+      if cached_result.present?
+        render json: { status: 'completed', result: cached_result }
+      else
+        render json: { status: 'not_started', message: 'No analysis has been run yet' }
+      end
     end
   end
 
@@ -138,50 +155,72 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
 
   # POST /api/v1/accounts/:account_id/storage/cleanup_orphans
   # Clean orphan blobs (blobs without attachments)
-  # Note: Processes in batches to handle large datasets
+  # Note: Runs in background via Sidekiq
   def cleanup_orphans
-    Rails.logger.info("[Storage] Starting orphan cleanup for account #{Current.account.id}")
-    start_time = Time.current
-
-    service = AccountStorageService.new(Current.account)
-    result = service.cleanup_orphan_blobs
-
-    duration = Time.current - start_time
-    Rails.logger.info("[Storage] Cleanup completed in #{duration.round(2)}s for account #{Current.account.id}")
-
+    Rails.logger.info("[Storage] Enqueuing orphan cleanup for account #{Current.account.id}")
+    
+    StorageCleanupJob.perform_later(Current.account.id)
+    
     render json: {
-      message: 'Cleanup completed',
-      cleaned_count: result[:cleaned_count],
-      space_freed: result[:space_freed],
-      duration_seconds: duration.round(2)
+      message: 'Cleanup job enqueued',
+      status: 'in_progress'
     }
   rescue StandardError => e
-    Rails.logger.error("[Storage] Cleanup error for account #{Current.account.id}: #{e.message}\n#{e.backtrace.join("\n")}")
-    render json: { error: 'Failed to cleanup orphan blobs' }, status: :internal_server_error
+    Rails.logger.error("[Storage] Cleanup enqueue error for account #{Current.account.id}: #{e.message}")
+    render json: { error: 'Failed to enqueue cleanup job' }, status: :internal_server_error
+  end
+
+  # GET /api/v1/accounts/:account_id/storage/cleanup_status
+  # Get status of cleanup job
+  def cleanup_status
+    status_data = Rails.cache.read("storage_cleanup_status:#{Current.account.id}")
+    
+    if status_data
+      render json: status_data
+    else
+      render json: {
+        status: 'not_started',
+        message: 'No cleanup has been run yet'
+      }
+    end
+  rescue StandardError => e
+    Rails.logger.error("[Storage] Cleanup status error: #{e.message}")
+    render json: { error: 'Failed to get cleanup status' }, status: :internal_server_error
   end
 
   # POST /api/v1/accounts/:account_id/storage/deduplicate
   # Deduplicate files with the same checksum
-  # Note: This is a heavy operation that can take time on large accounts
+  # Note: Runs in background via Sidekiq
   def deduplicate
-    Rails.logger.info("[Storage] Starting deduplication for account #{Current.account.id}")
-    start_time = Time.current
-
-    service = AccountStorageService.new(Current.account)
-    result = service.deduplicate_files
-
-    duration = Time.current - start_time
-    Rails.logger.info("[Storage] Deduplication completed in #{duration.round(2)}s for account #{Current.account.id}")
-
+    Rails.logger.info("[Storage] Enqueuing deduplication for account #{Current.account.id}")
+    
+    StorageDeduplicationJob.perform_later(Current.account.id)
+    
     render json: {
-      message: 'Deduplication completed',
-      deduplicated_count: result[:deduplicated_count],
-      space_saved: result[:space_saved],
-      duration_seconds: duration.round(2)
+      message: 'Deduplication job enqueued',
+      status: 'in_progress'
     }
   rescue StandardError => e
-    Rails.logger.error("[Storage] Deduplication error for account #{Current.account.id}: #{e.message}\n#{e.backtrace.join("\n")}")
-    render json: { error: 'Failed to deduplicate files' }, status: :internal_server_error
+    Rails.logger.error("[Storage] Deduplication enqueue error for account #{Current.account.id}: #{e.message}")
+    render json: { error: 'Failed to enqueue deduplication job' }, status: :internal_server_error
+  end
+
+  # GET /api/v1/accounts/:account_id/storage/deduplication_status
+  # Get status of deduplication job
+  def deduplication_status
+    status_data = Rails.cache.read("storage_deduplication_status:#{Current.account.id}")
+    
+    if status_data
+      render json: status_data
+    else
+      render json: {
+        status: 'not_started',
+        message: 'No deduplication has been run yet'
+      }
+    end
+  rescue StandardError => e
+    Rails.logger.error("[Storage] Deduplication status error: #{e.message}")
+    render json: { error: 'Failed to get deduplication status' }, status: :internal_server_error
   end
 
   private

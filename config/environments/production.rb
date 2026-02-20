@@ -53,7 +53,20 @@ Rails.application.configure do
   config.log_tags = [:request_id]
 
   # Use a different cache store in production.
-  # config.cache_store = :mem_cache_store
+  require Rails.root.join('lib/redis/config')
+  redis_config = Redis::Config.app.dup
+  if redis_config[:password].present? && !redis_config[:url].include?('@')
+    uri = URI.parse(redis_config[:url])
+    redis_url_with_auth = "redis://:#{redis_config[:password]}@#{uri.host}:#{uri.port}"
+    redis_url_with_auth += uri.path if uri.path.present? && uri.path != '/'
+    redis_config[:url] = redis_url_with_auth
+    redis_config.delete(:password)
+  end
+  config.cache_store = :redis_cache_store, redis_config.merge(
+    namespace: 'chatwoot_cache',
+    expires_in: 90.minutes,
+    reconnect_attempts: 3
+  )
 
   # Use a real queuing backend for Active Job (and separate queues per environment)
   config.active_job.queue_adapter = :sidekiq

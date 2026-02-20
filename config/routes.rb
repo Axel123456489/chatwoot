@@ -110,7 +110,9 @@ Rails.application.routes.draw do
           get 'storage/duplicates', to: 'storage#duplicates'
           get 'storage/largest_files', to: 'storage#largest_files'
           post 'storage/cleanup_orphans', to: 'storage#cleanup_orphans'
+          get 'storage/cleanup_status', to: 'storage#cleanup_status'
           post 'storage/deduplicate', to: 'storage#deduplicate'
+          get 'storage/deduplication_status', to: 'storage#deduplication_status'
           
           resources :templates, only: [:index, :show] do
             collection do

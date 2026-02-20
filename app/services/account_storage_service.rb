@@ -5,38 +5,86 @@
 class AccountStorageService
   attr_reader :account
 
-  # Timeout for long-running queries (10 minutes)
-  QUERY_TIMEOUT = 600_000 # milliseconds
+  # Timeout for long-running queries
+  # 10 minutes for small accounts, 60 minutes for large accounts
+  DEFAULT_QUERY_TIMEOUT = 600_000 # milliseconds (10 min)
+  LARGE_ACCOUNT_TIMEOUT = 3_600_000 # milliseconds (60 min)
   # Batch size for processing large datasets
   BATCH_SIZE = 1000
+  # Threshold for considering an account "large" (10k messages)
+  LARGE_ACCOUNT_MESSAGE_THRESHOLD = 10_000
 
   def initialize(account)
     @account = account
+    @is_large_account = nil
+  end
+
+  # Determine if account is large (cached)
+  def large_account?
+    return @is_large_account unless @is_large_account.nil?
+
+    @is_large_account = Message.joins(:conversation)
+                               .where(conversations: { account_id: account.id })
+                               .limit(LARGE_ACCOUNT_MESSAGE_THRESHOLD + 1)
+                               .count > LARGE_ACCOUNT_MESSAGE_THRESHOLD
+  end
+
+  # Get appropriate timeout based on account size
+  def query_timeout
+    large_account? ? LARGE_ACCOUNT_TIMEOUT : DEFAULT_QUERY_TIMEOUT
   end
 
   # Execute query with timeout to prevent hanging on large datasets
   def with_timeout(&block)
-    ActiveRecord::Base.connection.execute("SET LOCAL statement_timeout = #{QUERY_TIMEOUT}")
+    timeout_ms = query_timeout
+    timeout_seconds = timeout_ms / 1000
+    Rails.logger.info("[AccountStorageService] Using #{timeout_ms / 60_000}min timeout for account #{account.id}")
+    
+    # Use SET (without LOCAL) since we're not in a transaction block
+    # This is safe because it only affects the current connection session
+    ActiveRecord::Base.connection.execute("SET statement_timeout = '#{timeout_seconds}s'")
     result = block.call
-    ActiveRecord::Base.connection.execute('SET LOCAL statement_timeout = DEFAULT')
+    ActiveRecord::Base.connection.execute('RESET statement_timeout')
     result
-  rescue ActiveRecord::StatementInvalid => e
-    ActiveRecord::Base.connection.execute('SET LOCAL statement_timeout = DEFAULT')
-    raise e if e.message.include?('statement timeout')
-
+  rescue StandardError => e
+    # Always reset timeout on error
+    ActiveRecord::Base.connection.execute('RESET statement_timeout')
     raise
   end
 
   # Analyze storage usage for the account
   # @return [Hash] Storage statistics
-  def analyze
+  # @param progress_callback [Proc] Optional callback to report progress
+  def analyze(progress_callback: nil)
     with_timeout do
+      progress_callback&.call('overview', 0.2)
+      Rails.logger.info("[AccountStorageService] Analyzing overview for account #{account.id}")
+      overview_result = storage_overview
+      
+      progress_callback&.call('content_types', 0.4)
+      Rails.logger.info("[AccountStorageService] Analyzing by content type for account #{account.id}")
+      by_content_type_result = storage_by_content_type
+      
+      progress_callback&.call('orphans', 0.6)
+      Rails.logger.info("[AccountStorageService] Analyzing orphan blobs for account #{account.id}")
+      orphan_result = orphan_blob_stats
+      
+      progress_callback&.call('duplicates', 0.8)
+      Rails.logger.info("[AccountStorageService] Analyzing duplicates for account #{account.id}")
+      duplicates_result = duplicate_stats
+      
+      progress_callback&.call('sources', 0.9)
+      Rails.logger.info("[AccountStorageService] Analyzing by source for account #{account.id}")
+      by_source_result = storage_by_source
+      
+      progress_callback&.call('complete', 1.0)
+      
       {
-        overview: storage_overview,
-        by_content_type: storage_by_content_type,
-        orphan_blobs: orphan_blob_stats,
-        duplicates: duplicate_stats,
-        by_source: storage_by_source
+        overview: overview_result,
+        by_content_type: by_content_type_result,
+        orphan_blobs: orphan_result,
+        duplicates: duplicates_result,
+        by_source: by_source_result
       }
     end
   end
@@ -225,24 +273,45 @@ class AccountStorageService
   end
 
   # Get orphan blob statistics
+  # Optimized version for large accounts - uses SQL directly
   def orphan_blob_stats
-    orphan_blobs = find_orphan_blobs
+    blob_subquery = account_blob_ids_query.to_sql
+    
+    # Use a more efficient query for large datasets
+    sql = <<-SQL.squish
+      SELECT COUNT(*) as count, COALESCE(SUM(byte_size), 0) as size
+      FROM active_storage_blobs asb
+      WHERE asb.id IN (#{blob_subquery})
+      AND NOT EXISTS (
+        SELECT 1 FROM active_storage_attachments asa
+        WHERE asa.blob_id = asb.id
+      )
+    SQL
+    
+    result = ActiveRecord::Base.connection.select_one(sql)
 
     {
-      count: orphan_blobs.count,
-      size: orphan_blobs.sum(:byte_size)
+      count: result['count'].to_i,
+      size: result['size'].to_i
     }
   end
 
   # Get duplicate statistics
+  # Optimized version with LIMIT to prevent timeout on large accounts
   def duplicate_stats
     blob_subquery = account_blob_ids_query.to_sql
 
-    sql = 'SELECT checksum, COUNT(*) as count, SUM(byte_size) as total_size ' \
-          'FROM active_storage_blobs ' \
-          "WHERE id IN (#{blob_subquery}) " \
-          'GROUP BY checksum ' \
-          'HAVING COUNT(*) > 1'
+    # For large accounts, limit the analysis to reduce query time
+    limit_clause = large_account? ? 'LIMIT 100000' : ''
+    
+    sql = <<-SQL.squish
+      SELECT checksum, COUNT(*) as count, SUM(byte_size) as total_size
+      FROM active_storage_blobs
+      WHERE id IN (#{blob_subquery})
+      GROUP BY checksum
+      HAVING COUNT(*) > 1
+      #{limit_clause}
+    SQL
 
     results = ActiveRecord::Base.connection.select_all(sql)
     groups = results.count
