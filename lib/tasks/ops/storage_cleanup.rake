@@ -142,46 +142,83 @@ namespace :chatwoot do
       puts '⚠️  ADVERTENCIA: Esta operación modificará la base de datos'
       puts '=' * 80
 
-      duplicates = ActiveStorage::Blob.group(:checksum).having('COUNT(*) > 1')
-                                      .select('checksum, COUNT(*) as count')
+      # Get account if specified, otherwise use global
+      account_id = ENV['ACCOUNT_ID']
+      
+      if account_id.present?
+        account = Account.find(account_id)
+        puts "Procesando cuenta: #{account.name} (ID: #{account.id})"
+        
+        service = AccountStorageService.new(account)
+        
+        # Get stats first (faster with limit)
+        duplicates = service.duplicate_checksums(limit: 10_000)
+        puts "Encontrados #{duplicates.size}+ grupos de duplicados"
+        
+        print '¿Deseas continuar? (y/n): '
+        response = STDIN.gets.chomp.downcase
+        return unless response == 'y'
 
-      total_duplicates = duplicates.sum(&:count) - duplicates.count
+        # Ask for batch size and limit
+        print 'Tamaño del batch (Enter = 100): '
+        batch_size = STDIN.gets.chomp
+        batch_size = batch_size.present? ? batch_size.to_i : 100
+        
+        print 'Máximo de checksums a procesar (Enter = todos): '
+        max_checksums = STDIN.gets.chomp
+        max_checksums = max_checksums.present? ? max_checksums.to_i : nil
 
-      puts "Encontrados #{duplicates.count} grupos de duplicados con #{total_duplicates} archivos duplicados"
+        puts "\nIniciando deduplicación (batch_size: #{batch_size}, max: #{max_checksums || 'todos'})..."
+        
+        result = service.deduplicate_files(batch_size: batch_size, max_checksums: max_checksums)
 
-      print '¿Deseas continuar? (y/n): '
-      response = STDIN.gets.chomp.downcase
+        puts "\n✅ Deduplicados #{result[:deduplicated_count]} archivos"
+        puts "📦 Checksums procesados: #{result[:processed_checksums]}"
+        puts "💾 Espacio ahorrado: #{format_bytes(result[:space_saved])}"
+      else
+        # Global deduplication (legacy - not recommended for large DBs)
+        duplicates = ActiveStorage::Blob.group(:checksum).having('COUNT(*) > 1')
+                                        .select('checksum, COUNT(*) as count')
 
-      return unless response == 'y'
+        total_duplicates = duplicates.sum(&:count) - duplicates.count
 
-      deduplicated_count = 0
-      space_saved = 0
+        puts "Encontrados #{duplicates.count} grupos de duplicados con #{total_duplicates} archivos duplicados"
 
-      ActiveRecord::Base.transaction do
-        duplicates.each do |dup|
-          blobs = ActiveStorage::Blob.where(checksum: dup.checksum).order(:created_at)
-          master_blob = blobs.first
-          duplicate_blobs = blobs.offset(1)
+        print '¿Deseas continuar? (y/n): '
+        response = STDIN.gets.chomp.downcase
 
-          duplicate_blobs.each do |duplicate_blob|
-            # Reasignar todos los attachments del duplicado al master
-            attachments = ActiveStorage::Attachment.where(blob_id: duplicate_blob.id)
+        return unless response == 'y'
 
-            attachments.update_all(blob_id: master_blob.id)
+        deduplicated_count = 0
+        space_saved = 0
 
-            space_saved += duplicate_blob.byte_size
-            deduplicated_count += 1
+        ActiveRecord::Base.transaction do
+          duplicates.each do |dup|
+            blobs = ActiveStorage::Blob.where(checksum: dup.checksum).order(:created_at)
+            master_blob = blobs.first
+            duplicate_blobs = blobs.offset(1)
 
-            # Purgar el blob duplicado
-            duplicate_blob.purge
+            duplicate_blobs.each do |duplicate_blob|
+              # Reasignar todos los attachments del duplicado al master
+              attachments = ActiveStorage::Attachment.where(blob_id: duplicate_blob.id)
+
+              attachments.update_all(blob_id: master_blob.id)
+
+              space_saved += duplicate_blob.byte_size
+              deduplicated_count += 1
+
+              # Purgar el blob duplicado
+              duplicate_blob.purge
+            end
+
+            puts "  Deduplicado: #{master_blob.filename} (#{dup.count} copias)"
           end
-
-          puts "  Deduplicado: #{master_blob.filename} (#{dup.count} copias)"
         end
-      end
 
-      puts "✅ Deduplicados #{deduplicated_count} archivos"
-      puts "💾 Espacio ahorrado: #{format_bytes(space_saved)}"
+        puts "✅ Deduplicados #{deduplicated_count} archivos"
+        puts "💾 Espacio ahorrado: #{format_bytes(space_saved)}"
+      end
+      
       puts '=' * 80
     end
 

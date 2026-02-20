@@ -116,28 +116,43 @@ class AccountStorageService
 
   # Deduplicate files for this account
   # @return [Hash] Deduplication statistics
-  def deduplicate_files
+  # @param batch_size [Integer] Number of checksums to process per batch (default: 100)
+  # @param max_checksums [Integer] Maximum checksums to process (nil = all)
+  def deduplicate_files(batch_size: 100, max_checksums: nil)
     with_timeout do
-      stats = { deduplicated_count: 0, space_saved: 0 }
-      checksums = duplicate_checksums
-      total = checksums.size
+      stats = { deduplicated_count: 0, space_saved: 0, processed_checksums: 0 }
+      
+      # Get checksums in batches using LIMIT/OFFSET for better performance
+      offset = 0
+      batch_num = 0
+      
+      loop do
+        checksums = duplicate_checksums(limit: batch_size, offset: offset)
+        break if checksums.empty?
+        break if max_checksums && offset >= max_checksums
 
-      Rails.logger.info("[Storage] Found #{total} duplicate checksum groups to deduplicate")
+        batch_num += 1
+        Rails.logger.info("[Storage] Processing batch #{batch_num} (#{checksums.size} checksum groups, offset: #{offset})")
 
-      checksums.each_with_index do |checksum, index|
-        result = deduplicate_by_checksum(checksum)
-        stats[:deduplicated_count] += result[:count]
-        stats[:space_saved] += result[:space_saved]
-
-        # Log progress every 10 checksums or at completion
-        if (index + 1) % 10 == 0 || (index + 1) == total
-          Rails.logger.info("[Storage] Deduplicated #{index + 1}/#{total} checksum groups, " \
-                           "saved #{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB so far")
+        checksums.each do |checksum|
+          result = deduplicate_by_checksum(checksum)
+          stats[:deduplicated_count] += result[:count]
+          stats[:space_saved] += result[:space_saved]
+          stats[:processed_checksums] += 1
         end
+
+        Rails.logger.info("[Storage] Batch #{batch_num} complete: #{stats[:deduplicated_count]} total files deduplicated, " \
+                         "#{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB saved so far")
+
+        offset += batch_size
+        
+        # Small sleep to avoid overwhelming the database
+        sleep(0.1)
       end
 
       Rails.logger.info("[Storage] Deduplication complete: #{stats[:deduplicated_count]} files, " \
-                       "#{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB saved")
+                       "#{(stats[:space_saved].to_f / 1.megabyte).round(2)} MB saved, " \
+                       "#{stats[:processed_checksums]} checksum groups processed")
       stats
     end
   end
@@ -450,12 +465,25 @@ class AccountStorageService
   end
 
   # Get duplicate checksums for this account
-  def duplicate_checksums
-    ActiveStorage::Blob
-      .where(id: account_blob_ids_query)
-      .group(:checksum)
-      .having('COUNT(*) > 1')
-      .pluck(:checksum)
+  # @param limit [Integer] Maximum checksums to return (default: 1000)
+  # @param offset [Integer] Offset for pagination (default: 0)
+  # @return [Array<String>] Array of checksums with duplicates
+  def duplicate_checksums(limit: 1000, offset: 0)
+    # Use raw SQL with LIMIT/OFFSET for better performance on large datasets
+    blob_subquery = account_blob_ids_query.to_sql
+    
+    sql = <<-SQL
+      SELECT checksum 
+      FROM active_storage_blobs 
+      WHERE id IN (#{blob_subquery})
+      GROUP BY checksum 
+      HAVING COUNT(*) > 1
+      ORDER BY checksum
+      LIMIT #{limit.to_i}
+      OFFSET #{offset.to_i}
+    SQL
+    
+    ActiveRecord::Base.connection.select_values(sql)
   end
 
   # Count blobs by checksum for this account
@@ -463,121 +491,83 @@ class AccountStorageService
     ActiveStorage::Blob.where(checksum: checksum, id: account_blob_ids_query).count
   end
 
-  # Deduplicate blobs with the same checksum
-  # rubocop:disable Metrics/BlockLength
+  # Deduplicate blobs with the same checksum (optimized version)
+  # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
   def deduplicate_by_checksum(checksum)
     blobs = ActiveStorage::Blob.where(checksum: checksum, id: account_blob_ids_query).order(:created_at)
 
     return { count: 0, space_saved: 0 } if blobs.count <= 1
 
     master_blob = blobs.first
-    duplicate_blobs = blobs.offset(1)
+    duplicate_blob_ids = blobs.offset(1).pluck(:id)
+
+    return { count: 0, space_saved: 0 } if duplicate_blob_ids.empty?
 
     count = 0
     space_saved = 0
 
-    Rails.logger.debug("[Storage] Deduplicating checksum #{checksum}: #{duplicate_blobs.count} duplicates of master blob ##{master_blob.id}")
+    Rails.logger.debug("[Storage] Deduplicating checksum #{checksum[0..8]}...: #{duplicate_blob_ids.size} duplicates of master blob ##{master_blob.id}")
 
-    # Keep message attachment IDs as subquery (no pluck)
-    attachment_ids = Attachment.where(
-      message_id: Message.joins(:conversation)
-                         .where(conversations: { account_id: account.id })
-                         .select(:id)
-    ).select(:id)
-
-    duplicate_blobs.each do |duplicate_blob|
-      # For each duplicate blob, we need to either:
-      # 1. Update the attachment to point to master_blob (if no conflict)
-      # 2. Delete the attachment (if master_blob attachment already exists for that record)
-
-      # 1. Message attachments (Attachment model with has_one_attached :file)
-      ActiveStorage::Attachment
-        .where(record_type: 'Attachment', record_id: attachment_ids, name: 'file', blob_id: duplicate_blob.id)
-        .find_each do |attachment|
-        # Check if this record already has an attachment with master_blob
-        existing = ActiveStorage::Attachment.find_by(
-          record_type: attachment.record_type,
-          record_id: attachment.record_id,
-          name: attachment.name,
-          blob_id: master_blob.id
-        )
-
-        if existing
-          # Already has master_blob, just delete the duplicate attachment
-          attachment.destroy
-        else
-          # Update to point to master_blob
-          attachment.update(blob_id: master_blob.id)
-        end
-      end
-
-      # 2. Canned response attachments
-      canned_response_ids = account.canned_responses.select(:id)
-      ActiveStorage::Attachment
-        .where(record_type: 'CannedResponse', record_id: canned_response_ids, blob_id: duplicate_blob.id)
-        .find_each do |attachment|
-        existing = ActiveStorage::Attachment.find_by(
-          record_type: attachment.record_type,
-          record_id: attachment.record_id,
-          name: attachment.name,
-          blob_id: master_blob.id
-        )
-
-        if existing
-          attachment.destroy
-        else
-          attachment.update(blob_id: master_blob.id)
-        end
-      end
-
-      # 3. User avatars
-      user_ids = account.users.select(:id)
-      ActiveStorage::Attachment
-        .where(record_type: 'User', record_id: user_ids, name: 'avatar', blob_id: duplicate_blob.id)
-        .find_each do |attachment|
-        existing = ActiveStorage::Attachment.find_by(
-          record_type: attachment.record_type,
-          record_id: attachment.record_id,
-          name: attachment.name,
-          blob_id: master_blob.id
-        )
-
-        if existing
-          attachment.destroy
-        else
-          attachment.update(blob_id: master_blob.id)
-        end
-      end
-
-      # 4. Contact avatars
-      contact_ids = account.contacts.select(:id)
-      ActiveStorage::Attachment
-        .where(record_type: 'Contact', record_id: contact_ids, name: 'avatar', blob_id: duplicate_blob.id)
-        .find_each do |attachment|
-        existing = ActiveStorage::Attachment.find_by(
-          record_type: attachment.record_type,
-          record_id: attachment.record_id,
-          name: attachment.name,
-          blob_id: master_blob.id
-        )
-
-        if existing
-          attachment.destroy
-        else
-          attachment.update(blob_id: master_blob.id)
-        end
-      end
-
-      space_saved += duplicate_blob.byte_size
+    # Process each duplicate blob
+    duplicate_blob_ids.each do |duplicate_blob_id|
+      space_saved += deduplicate_single_blob(duplicate_blob_id, master_blob.id)
       count += 1
-
-      # Purge if no attachments remain
-      duplicate_blob.purge if duplicate_blob.attachments.reload.empty?
     end
 
-    Rails.logger.debug("[Storage] Checksum #{checksum} deduplication complete: #{count} files, #{(space_saved.to_f / 1.megabyte).round(2)} MB")
+    Rails.logger.debug("[Storage] Checksum #{checksum[0..8]}... complete: #{count} files, #{(space_saved.to_f / 1.megabyte).round(2)} MB")
     { count: count, space_saved: space_saved }
   end
-  # rubocop:enable Metrics/BlockLength
+  # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
+
+  # Deduplicate a single blob by reassigning its attachments to master
+  # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+  def deduplicate_single_blob(duplicate_blob_id, master_blob_id)
+    duplicate_blob = ActiveStorage::Blob.find(duplicate_blob_id)
+    space_saved = duplicate_blob.byte_size
+
+    # Get all attachments for this duplicate blob
+    attachments = ActiveStorage::Attachment.where(blob_id: duplicate_blob_id)
+
+    # Group attachments by (record_type, record_id, name) to detect conflicts
+    attachments_by_record = attachments.group_by { |a| [a.record_type, a.record_id, a.name] }
+
+    # Get existing master blob attachments to detect conflicts
+    existing_master_attachments = ActiveStorage::Attachment
+                                   .where(blob_id: master_blob_id)
+                                   .select(:record_type, :record_id, :name)
+                                   .map { |a| [a.record_type, a.record_id, a.name] }
+                                   .to_set
+
+    # Split attachments into: can_update (no conflict) and must_delete (conflict exists)
+    attachment_ids_to_update = []
+    attachment_ids_to_delete = []
+
+    attachments_by_record.each do |key, atts|
+      if existing_master_attachments.include?(key)
+        # Conflict: record already has master_blob, delete these attachments
+        attachment_ids_to_delete.concat(atts.map(&:id))
+      else
+        # No conflict: can update to point to master_blob
+        attachment_ids_to_update.concat(atts.map(&:id))
+      end
+    end
+
+    # Batch update attachments to point to master blob
+    if attachment_ids_to_update.any?
+      ActiveStorage::Attachment.where(id: attachment_ids_to_update).update_all(blob_id: master_blob_id)
+    end
+
+    # Batch delete conflicting attachments
+    if attachment_ids_to_delete.any?
+      ActiveStorage::Attachment.where(id: attachment_ids_to_delete).delete_all
+    end
+
+    # Purge the duplicate blob if it has no attachments left
+    remaining_count = ActiveStorage::Attachment.where(blob_id: duplicate_blob_id).count
+    duplicate_blob.purge if remaining_count.zero?
+
+    space_saved
+  end
+  # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 end
 # rubocop:enable Metrics/ClassLength

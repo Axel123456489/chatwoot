@@ -245,3 +245,8 @@
 - name: waha_integration
   display_name: WAHA Integration
   enabled: false
+- name: advanced_assignment
+  display_name: Advanced Assignment
+  enabled: false
+  premium: true
+  chatwoot_internal: true
