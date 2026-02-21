@@ -18,6 +18,7 @@ import CopilotEditorSection from './CopilotEditorSection.vue';
 import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
+import ButtonBuilder from 'dashboard/components-next/whatsapp/ButtonBuilder.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import AudioRecorder from 'dashboard/components/widgets/WootWriter/AudioRecorder.vue';
@@ -65,6 +66,7 @@ export default {
     AttachmentPreview,
     AudioRecorder,
     ReplyBoxBanner,
+    ButtonBuilder,
     EmojiInput,
     MessageSignatureMissingAlert,
     ReplyBottomPanel,
@@ -136,6 +138,8 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
+      whatsappButtons: [],
+      showButtonBuilder: false,
     };
   },
   computed: {
@@ -414,6 +418,14 @@ export default {
     isDefaultEditorMode() {
       return !this.showAudioRecorderEditor && !this.copilot.isActive.value;
     },
+    shouldShowButtonBuilder() {
+      return (
+        this.showButtonBuilder &&
+        this.isAWhatsAppChannel &&
+        !this.isOnPrivateNote &&
+        this.isDefaultEditorMode
+      );
+    },
   },
   watch: {
     currentChat(conversation, oldConversation) {
@@ -425,6 +437,9 @@ export default {
         this.setCCAndToEmailsFromLastChat();
         // Reset Copilot editor state (includes cancelling ongoing generation)
         this.copilot.reset();
+        // Reset WhatsApp buttons when switching conversations
+        this.whatsappButtons = [];
+        this.showButtonBuilder = false;
       }
 
       if (this.isOnPrivateNote) {
@@ -876,6 +891,8 @@ export default {
       this.isRecordingAudio = false;
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
+      this.whatsappButtons = [];
+      this.showButtonBuilder = false;
     },
     clearEmailField() {
       this.ccEmails = '';
@@ -885,6 +902,9 @@ export default {
 
     toggleEmojiPicker() {
       this.showEmojiPicker = !this.showEmojiPicker;
+    },
+    toggleButtonBuilder() {
+      this.showButtonBuilder = !this.showButtonBuilder;
     },
     toggleAudioRecorder() {
       this.isRecordingAudio = !this.isRecordingAudio;
@@ -1017,6 +1037,19 @@ export default {
 
         messagePayload = this.setReplyToInPayload(messagePayload);
 
+        // Add WhatsApp buttons to content_attributes if present
+        if (this.whatsappButtons && this.whatsappButtons.length > 0) {
+          messagePayload.contentAttributes = {
+            ...messagePayload.contentAttributes,
+            whatsapp_buttons: this.whatsappButtons,
+            whatsapp_interactive_type: this.whatsappButtons.some(
+              btn => btn.type === 'url' || btn.type === 'phone_number'
+            )
+              ? 'cta'
+              : 'quick_reply',
+          };
+        }
+
         multipleMessagePayload.push(messagePayload);
       }
 
@@ -1059,6 +1092,20 @@ export default {
       if (this.toEmails && !this.isOnPrivateNote) {
         messagePayload.toEmails = this.toEmails;
       }
+
+      // Add WhatsApp buttons to content_attributes if present
+      if (this.whatsappButtons && this.whatsappButtons.length > 0) {
+        messagePayload.contentAttributes = {
+          ...messagePayload.contentAttributes,
+          whatsapp_buttons: this.whatsappButtons,
+          whatsapp_interactive_type: this.whatsappButtons.some(
+            btn => btn.type === 'url' || btn.type === 'phone_number'
+          )
+            ? 'cta'
+            : 'quick_reply',
+        };
+      }
+
       return messagePayload;
     },
     setCcEmails(value) {
@@ -1313,6 +1360,13 @@ export default {
           "
           class="mb-2"
         />
+        <ButtonBuilder
+          v-if="shouldShowButtonBuilder"
+          :key="`button-builder-${currentChat.id}`"
+          v-model="whatsappButtons"
+          class="mb-2"
+          :max-buttons="3"
+        />
       </div>
     </Transition>
 
@@ -1358,9 +1412,14 @@ export default {
         :toggle-audio-recorder-play-pause="toggleAudioRecorderPlayPause"
         :toggle-audio-recorder="toggleAudioRecorder"
         :toggle-emoji-picker="toggleEmojiPicker"
+        :show-button-builder-toggle="
+          isAWhatsAppChannel && !isOnPrivateNote && isDefaultEditorMode
+        "
+        :button-builder-enabled="showButtonBuilder"
         :message="message"
         :portal-slug="connectedPortalSlug"
         :new-conversation-modal-active="newConversationModalActive"
+        @toggle-button-builder="toggleButtonBuilder"
         @select-whatsapp-template="openWhatsappTemplateModal"
         @select-content-template="openContentTemplateModal"
         @replace-text="replaceText"

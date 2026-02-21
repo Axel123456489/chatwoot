@@ -288,6 +288,10 @@ class Whatsapp::IncomingMessageBaseService
     content_attrs = outgoing_echo ? { external_echo: true } : {}
     content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
 
+    # Extract button reply metadata if present
+    button_metadata = extract_button_reply_metadata(message)
+    content_attrs.merge!(button_metadata) if button_metadata.present?
+
     @message = @conversation.messages.build(
       content: message_content(message),
       account_id: @inbox.account_id,

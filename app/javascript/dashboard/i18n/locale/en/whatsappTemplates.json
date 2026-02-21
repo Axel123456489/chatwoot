@@ -43,5 +43,23 @@
       "DOCUMENT_NAME_PLACEHOLDER": "Enter document filename (e.g., Invoice_2025.pdf)",
       "BUTTON_PARAMETER": "Enter button parameter"
     }
+  },
+  "WHATSAPP": {
+    "BUTTON_BUILDER": {
+      "TITLE": "WhatsApp Buttons",
+      "ADD_BUTTON": "Add Button",
+      "NO_BUTTONS": "No buttons added yet. Click \"Add Button\" to create interactive buttons for your WhatsApp message.",
+      "BUTTON_LABEL": "Button {index}",
+      "BUTTON_TYPE": "Button Type",
+      "BUTTON_TEXT": "Button Text",
+      "BUTTON_TEXT_PLACEHOLDER": "Enter button text (max 20 chars)",
+      "URL_LABEL": "URL",
+      "URL_PLACEHOLDER": "https://example.com",
+      "PHONE_LABEL": "Phone Number",
+      "PHONE_PLACEHOLDER": "+1234567890",
+      "BUTTONS_COUNT": "{count} / {max} buttons added",
+      "SHOW_TOOLTIP": "Add WhatsApp buttons",
+      "HIDE_TOOLTIP": "Hide WhatsApp buttons"
+    }
   }
 }

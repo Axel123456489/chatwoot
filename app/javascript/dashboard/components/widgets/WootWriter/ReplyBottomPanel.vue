@@ -126,6 +126,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    showButtonBuilderToggle: {
+      type: Boolean,
+      default: false,
+    },
+    buttonBuilderEnabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: [
     'replaceText',
@@ -134,6 +142,7 @@ export default {
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
+    'toggleButtonBuilder',
   ],
   setup() {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -263,6 +272,11 @@ export default {
         ? this.$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.DISABLE_TOOLTIP')
         : this.$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.ENABLE_TOOLTIP');
     },
+    buttonBuilderToggleTooltip() {
+      return this.buttonBuilderEnabled
+        ? this.$t('WHATSAPP.BUTTON_BUILDER.HIDE_TOOLTIP')
+        : this.$t('WHATSAPP.BUTTON_BUILDER.SHOW_TOOLTIP');
+    },
   },
   mounted() {
     ActiveStorage.start();
@@ -362,6 +376,16 @@ export default {
         sm
         :aria-pressed="quotedReplyEnabled"
         @click="$emit('toggleQuotedReply')"
+      />
+      <NextButton
+        v-if="showButtonBuilderToggle"
+        v-tooltip.top-end="buttonBuilderToggleTooltip"
+        icon="i-ph-check-square"
+        :variant="buttonBuilderEnabled ? 'solid' : 'faded'"
+        color="slate"
+        sm
+        :aria-pressed="buttonBuilderEnabled"
+        @click="$emit('toggleButtonBuilder')"
       />
       <NextButton
         v-if="enableWhatsAppTemplates"

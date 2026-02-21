@@ -189,6 +189,28 @@ describe Whatsapp::IncomingMessageService do
         expect(Contact.all.first.name).to eq('Sojan Jose')
         expect(whatsapp_channel.inbox.messages.first.content).to eq('First Button')
       end
+
+      it 'stores button reply metadata in content_attributes' do
+        params = {
+          'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
+          'messages' => [{ 'from' => '2423423243', 'id' => 'SDFADSf23sfasdafasdfa',
+                           :interactive => {
+                             'button_reply': {
+                               'id': 'btn_yes',
+                               'title': 'Yes, I agree'
+                             },
+                             'type': 'button_reply'
+                           },
+                           'timestamp' => '1633034394', 'type' => 'interactive' }]
+        }.with_indifferent_access
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        
+        message = whatsapp_channel.inbox.messages.first
+        expect(message.content_attributes['from_button']).to be true
+        expect(message.content_attributes['button_type']).to eq('button_reply')
+        expect(message.content_attributes['button_id']).to eq('btn_yes')
+        expect(message.content_attributes['button_title']).to eq('Yes, I agree')
+      end
     end
 
     # ref: https://github.com/chatwoot/chatwoot/issues/3795#issuecomment-1018057318
@@ -206,6 +228,25 @@ describe Whatsapp::IncomingMessageService do
         expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
         expect(Contact.all.first.name).to eq('Sojan Jose')
         expect(whatsapp_channel.inbox.messages.first.content).to eq('Yes this is a button')
+      end
+
+      it 'stores template button metadata in content_attributes' do
+        params = {
+          'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
+          'messages' => [{ 'from' => '2423423243', 'id' => 'SDFADSf23sfasdafasdfa',
+                           'button' => {
+                             'text' => 'Call us now',
+                             'payload' => 'btn_call'
+                           },
+                           'timestamp' => '1633034394', 'type' => 'button' }]
+        }.with_indifferent_access
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        
+        message = whatsapp_channel.inbox.messages.first
+        expect(message.content_attributes['from_button']).to be true
+        expect(message.content_attributes['button_type']).to eq('template_button')
+        expect(message.content_attributes['button_text']).to eq('Call us now')
+        expect(message.content_attributes['button_payload']).to eq('btn_call')
       end
     end
 

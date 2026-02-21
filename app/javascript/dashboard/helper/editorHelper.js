@@ -423,16 +423,22 @@ const nodeCreators = {
       message: content,
       variables,
     });
-    
+
     // Check content type: if plain_text, insert as text node; otherwise parse as markdown
     const type = contentType || 'markdown';
-    const node = type === 'plain_text'
-      ? editorView.state.schema.text(updatedMessage)
-      : createNode(editorView, 'cannedResponse', updatedMessage);
-    
+    const node =
+      type === 'plain_text'
+        ? editorView.state.schema.text(updatedMessage)
+        : createNode(editorView, 'cannedResponse', updatedMessage);
+
     return {
       node,
-      from: type === 'plain_text' ? from : (node.textContent === updatedMessage ? from : from - 1),
+      from:
+        type === 'plain_text'
+          ? from
+          : node.textContent === updatedMessage
+            ? from
+            : from - 1,
       to,
     };
   },

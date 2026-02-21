@@ -44,6 +44,40 @@ module Whatsapp::IncomingMessageServiceHelpers
       message.dig(:name, :formatted_name)
   end
 
+  def extract_button_reply_metadata(message)
+    return nil unless message[:type].in?(%w[interactive button])
+
+    if message[:type] == 'interactive'
+      button_reply = message.dig(:interactive, :button_reply)
+      list_reply = message.dig(:interactive, :list_reply)
+
+      if button_reply.present?
+        {
+          from_button: true,
+          button_type: 'button_reply',
+          button_id: button_reply[:id],
+          button_title: button_reply[:title]
+        }
+      elsif list_reply.present?
+        {
+          from_button: true,
+          button_type: 'list_reply',
+          button_id: list_reply[:id],
+          button_title: list_reply[:title],
+          list_description: list_reply[:description]
+        }
+      end
+    elsif message[:type] == 'button'
+      button = message[:button]
+      {
+        from_button: true,
+        button_type: 'template_button',
+        button_text: button[:text],
+        button_payload: button[:payload]
+      }
+    end
+  end
+
   def file_content_type(file_type)
     return :image if %w[image sticker].include?(file_type)
     return :audio if %w[audio voice].include?(file_type)

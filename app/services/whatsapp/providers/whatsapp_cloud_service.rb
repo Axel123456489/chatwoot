@@ -6,6 +6,8 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
       send_attachment_message(phone_number, message)
     elsif message.content_type == 'input_select'
       send_interactive_text_message(phone_number, message)
+    elsif message.whatsapp_buttons.present?
+      send_interactive_button_message(phone_number, message)
     else
       send_text_message(phone_number, message)
     end
@@ -211,6 +213,60 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
       headers: api_headers,
       body: {
         messaging_product: 'whatsapp',
+        to: phone_number,
+        interactive: payload,
+        type: 'interactive'
+      }.to_json
+    )
+
+    process_response(response, message)
+  end
+
+  def send_interactive_button_message(phone_number, message)
+    buttons = message.whatsapp_buttons.map do |button|
+      case button['type']
+      when 'url'
+        {
+          type: 'url',
+          url: button['url'],
+          text: button['text']
+        }
+      when 'phone_number'
+        {
+          type: 'phone_number',
+          phone_number: button['phone_number'],
+          text: button['text']
+        }
+      else
+        {
+          type: 'reply',
+          reply: {
+            id: button['id'] || button['text'].parameterize,
+            title: button['text'].truncate(20)
+          }
+        }
+      end
+    end
+
+    # Always use button type for interactive messages
+    interactive_type = 'button'
+
+    payload = {
+      type: interactive_type,
+      body: {
+        text: message.outgoing_content
+      },
+      action: {
+        buttons: buttons.first(3) # WhatsApp limits to 3 buttons
+      }
+    }
+
+    response = HTTParty.post(
+      "#{phone_id_path}/messages",
+      headers: api_headers,
+      body: {
+        messaging_product: 'whatsapp',
+        context: whatsapp_reply_context(message),
         to: phone_number,
         interactive: payload,
         type: 'interactive'

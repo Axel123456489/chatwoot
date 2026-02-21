@@ -46,6 +46,9 @@ class Whatsapp::TemplateProcessorService
     components.concat(process_footer_components(processed_params))
     components.concat(process_button_components(processed_params))
 
+    # Extract and save button information to message for display
+    save_button_info_to_message(template, processed_params) if message.present?
+
     @template_params = components
   end
 
@@ -126,5 +129,47 @@ class Whatsapp::TemplateProcessorService
 
   def parameter_builder
     @parameter_builder ||= Whatsapp::PopulateTemplateParametersService.new
+  end
+
+  def save_button_info_to_message(template, processed_params)
+    buttons_info = extract_buttons_from_template(template, processed_params)
+    return if buttons_info.blank?
+
+    message.whatsapp_buttons = buttons_info[:buttons]
+    message.whatsapp_interactive_type = buttons_info[:type]
+  end
+
+  def extract_buttons_from_template(template, processed_params)
+    button_components = template['components']&.find { |c| c['type'] == 'BUTTONS' }
+    return nil if button_components.blank? || button_components['buttons'].blank?
+
+    buttons = button_components['buttons'].map.with_index do |button, index|
+      button_data = {
+        type: button['type']&.downcase || 'quick_reply',
+        text: button['text']
+      }
+
+      # Add URL info for URL buttons
+      if button['type'] == 'URL'
+        url = button['url']
+        # Replace URL parameter if provided
+        if processed_params['buttons'] && processed_params['buttons'][index]
+          param_value = processed_params['buttons'][index]['parameter']
+          url = url.gsub('{{1}}', param_value) if param_value.present?
+        end
+        button_data[:url] = url
+      end
+
+      # Add phone number for PHONE_NUMBER buttons
+      button_data[:phone_number] = button['phone_number'] if button['type'] == 'PHONE_NUMBER'
+
+      button_data
+    end
+
+    # Determine interactive type based on button types
+    has_url = buttons.any? { |b| b[:type] == 'url' }
+    interactive_type = has_url ? 'cta' : 'quick_reply'
+
+    { buttons: buttons, type: interactive_type }
   end
 end
