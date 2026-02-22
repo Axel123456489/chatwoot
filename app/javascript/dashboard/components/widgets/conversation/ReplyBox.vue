@@ -1087,6 +1087,7 @@ export default {
         private: this.isPrivate,
         sender: this.sender,
       };
+
       messagePayload = this.setReplyToInPayload(messagePayload);
 
       if (this.attachedFiles && this.attachedFiles.length) {

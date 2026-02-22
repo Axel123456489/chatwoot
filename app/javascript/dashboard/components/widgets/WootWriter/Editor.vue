@@ -631,7 +631,9 @@ function handleLineBreakWhenEnterToSendEnabled(event) {
     !props.overrideLineBreaks
   ) {
     event.preventDefault();
+    return true;
   }
+  return false;
 }
 
 async function insertNodeIntoEditor(node, from = 0, to = 0) {
@@ -703,16 +705,20 @@ function handleLineBreakWhenCmdAndEnterToSendEnabled(event) {
     !props.overrideLineBreaks
   ) {
     event.preventDefault();
+    return true;
   }
+  return false;
 }
 
 function onKeydown(event) {
+  let handled = false;
   if (isEnterToSendEnabled()) {
-    handleLineBreakWhenEnterToSendEnabled(event);
+    handled = handleLineBreakWhenEnterToSendEnabled(event);
   }
   if (isCmdPlusEnterToSendEnabled()) {
-    handleLineBreakWhenCmdAndEnterToSendEnabled(event);
+    handled = handleLineBreakWhenCmdAndEnterToSendEnabled(event) || handled;
   }
+  return handled;
 }
 
 function createEditorView() {

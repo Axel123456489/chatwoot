@@ -84,7 +84,17 @@ class MessageFormatter {
         TWITTER_HASH_REPLACEMENT
       );
     }
-    return this.md.render(updatedMessage);
+    // Convert Markdown hard breaks to simple newlines
+    // since markdown-it with breaks:true already converts \n to <br>
+    // Hard breaks can be:
+    //   - backslash+newline (\\\n)
+    //   - space+backslash+newline ( \\\n) - ProseMirror serializes this way
+    //   - two-spaces+newline (  \n or more spaces)
+    updatedMessage = updatedMessage.replace(/ \\\n/g, '\n'); // space + backslash + newline
+    updatedMessage = updatedMessage.replace(/\\\n/g, '\n'); // backslash + newline
+    updatedMessage = updatedMessage.replace(/ {2,}\n/g, '\n'); // two or more spaces + newline
+    const rendered = this.md.render(updatedMessage);
+    return rendered;
   }
 
   get formattedMessage() {

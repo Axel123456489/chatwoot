@@ -4,7 +4,6 @@ import BaseBubble from 'next/message/bubbles/Base.vue';
 import FormattedContent from './FormattedContent.vue';
 import AttachmentChips from 'next/message/chips/AttachmentChips.vue';
 import TranslationToggle from 'dashboard/components-next/message/TranslationToggle.vue';
-import Button from 'dashboard/components-next/button/Button.vue';
 import DashboardIcon from 'shared/components/FluentIcon/DashboardIcon.vue';
 import ButtonReplyBadge from 'dashboard/components-next/message/badges/ButtonReplyBadge.vue';
 import { MESSAGE_TYPES } from '../../constants';

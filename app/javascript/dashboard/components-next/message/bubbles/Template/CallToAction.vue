@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import Button from 'dashboard/components-next/button/Button.vue';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 
 const props = defineProps({
@@ -37,16 +36,8 @@ const handleButtonClick = button => {
       class="px-3 py-2 flex items-center justify-center gap-2 cursor-pointer border border-n-strong rounded-lg hover:bg-n-alpha-2 transition-colors text-n-blue-11 font-medium text-sm"
       @click="handleButtonClick(button)"
     >
-      <FluentIcon 
-        v-if="button.type === 'phone_number'"
-        icon="call" 
-        size="16" 
-      />
-      <FluentIcon 
-        v-else-if="button.type === 'url'"
-        icon="link" 
-        size="16" 
-      />
+      <FluentIcon v-if="button.type === 'phone_number'" icon="call" size="16" />
+      <FluentIcon v-else-if="button.type === 'url'" icon="link" size="16" />
       <svg
         v-else
         width="15"

@@ -287,11 +287,10 @@ export default {
     showFormatModeToggle() {
       // Show for all text-based channels except Email and Voice
       // Email requires HTML formatting, Voice is not text-based
-      const show = (
+      const show =
         !this.isOnPrivateNote &&
         !this.isAnEmailChannel &&
-        !this.isAVoiceChannel
-      );
+        !this.isAVoiceChannel;
       return show;
     },
     currentFormatMode() {
@@ -307,7 +306,9 @@ export default {
     },
     formatModeIcon() {
       // More distinctive icons
-      return this.isPlainTextMode ? 'i-ph-file-text' : 'i-ph-text-strikethrough';
+      return this.isPlainTextMode
+        ? 'i-ph-file-text'
+        : 'i-ph-text-strikethrough';
     },
   },
   mounted() {

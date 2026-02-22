@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import Button from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
   message: {
