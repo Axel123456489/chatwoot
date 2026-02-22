@@ -1,6 +1,7 @@
 <script setup>
-import Button from 'dashboard/components-next/button/Button.vue';
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
   message: {
     type: Object,
     required: true,

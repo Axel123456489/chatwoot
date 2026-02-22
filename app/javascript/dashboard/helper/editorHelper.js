@@ -519,9 +519,14 @@ const nodeCreators = {
         ? parsePlainTextToNodes(editorView.state.schema, updatedMessage)
         : createNode(editorView, 'cannedResponse', updatedMessage);
 
+    const adjustedFrom =
+      type === 'plain_text' || node.textContent === updatedMessage
+        ? from
+        : from - 1;
+
     return {
       node,
-      from: type === 'plain_text' ? from : (node.textContent === updatedMessage ? from : from - 1),
+      from: adjustedFrom,
       to,
     };
   },
