@@ -15,6 +15,7 @@ import {
   getSelectionCoords,
   getMenuAnchor,
   calculateMenuPosition,
+  parsePlainTextToNodes,
 } from '../editorHelper';
 import { EditorState } from '@chatwoot/prosemirror-schema';
 import { EditorView } from '@chatwoot/prosemirror-schema';
@@ -1100,5 +1101,77 @@ describe('Menu positioning helpers', () => {
       expect(result).toHaveProperty('width', 300);
       expect(result.left).toBeGreaterThanOrEqual(0);
     });
+  });
+});
+
+describe('parsePlainTextToNodes', () => {
+  it('parses single line text correctly', () => {
+    const text = 'Hello world';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type.name).toBe('paragraph');
+    expect(nodes[0].textContent).toBe('Hello world');
+  });
+
+  it('parses text with single line break as hard break', () => {
+    const text = 'Line 1\nLine 2';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type.name).toBe('paragraph');
+    // Check that it contains both text nodes
+    expect(nodes[0].textContent).toBe('Line 1Line 2');
+  });
+
+  it('parses text with double line break as separate paragraphs', () => {
+    const text = 'Paragraph 1\n\nParagraph 2';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(2);
+    expect(nodes[0].type.name).toBe('paragraph');
+    expect(nodes[0].textContent).toBe('Paragraph 1');
+    expect(nodes[1].type.name).toBe('paragraph');
+    expect(nodes[1].textContent).toBe('Paragraph 2');
+  });
+
+  it('parses text with multiple line breaks correctly', () => {
+    const text = 'Para 1\n\nPara 2\nLine 2\n\nPara 3';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(3);
+    expect(nodes[0].textContent).toBe('Para 1');
+    expect(nodes[1].textContent).toBe('Para 2Line 2');
+    expect(nodes[2].textContent).toBe('Para 3');
+  });
+
+  it('handles empty string', () => {
+    const text = '';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type.name).toBe('paragraph');
+    expect(nodes[0].textContent).toBe('');
+  });
+
+  it('handles text with only line breaks', () => {
+    const text = '\n\n\n';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    // Should create empty paragraphs for each double line break
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach(node => {
+      expect(node.type.name).toBe('paragraph');
+    });
+  });
+
+  it('preserves line breaks in canned response content', () => {
+    const text = 'Greeting line\n\nBody paragraph 1\nBody line 2\n\nClosing';
+    const nodes = parsePlainTextToNodes(text, schema);
+
+    expect(nodes).toHaveLength(3);
+    expect(nodes[0].textContent).toBe('Greeting line');
+    expect(nodes[1].textContent).toBe('Body paragraph 1Body line 2');
+    expect(nodes[2].textContent).toBe('Closing');
   });
 });

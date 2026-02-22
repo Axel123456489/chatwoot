@@ -143,10 +143,15 @@ export default {
     'selectContentTemplate',
     'toggleQuotedReply',
     'toggleButtonBuilder',
+    'formatModeChanged',
   ],
   setup() {
-    const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
-      useUISettings();
+    const {
+      setSignatureFlagForInbox,
+      fetchSignatureFlagFromUISettings,
+      setFormatModeForInbox,
+      fetchFormatModeFromUISettings,
+    } = useUISettings();
 
     const uploadRef = ref(false);
 
@@ -171,6 +176,8 @@ export default {
     return {
       setSignatureFlagForInbox,
       fetchSignatureFlagFromUISettings,
+      setFormatModeForInbox,
+      fetchFormatModeFromUISettings,
       uploadRef,
     };
   },
@@ -277,6 +284,31 @@ export default {
         ? this.$t('WHATSAPP.BUTTON_BUILDER.HIDE_TOOLTIP')
         : this.$t('WHATSAPP.BUTTON_BUILDER.SHOW_TOOLTIP');
     },
+    showFormatModeToggle() {
+      // Show only for WhatsApp channels and when not in private note mode
+      const show = (
+        !this.isOnPrivateNote &&
+        (this.isAWhatsAppChannel ||
+          this.isATwilioWhatsAppChannel ||
+          this.is360DialogWhatsAppChannel)
+      );
+      return show;
+    },
+    currentFormatMode() {
+      return this.fetchFormatModeFromUISettings(this.channelType);
+    },
+    isPlainTextMode() {
+      return this.currentFormatMode === 'plain';
+    },
+    formatModeToggleTooltip() {
+      return this.isPlainTextMode
+        ? this.$t('CONVERSATION.REPLYBOX.FORMAT_MODE.ENABLE_MARKDOWN')
+        : this.$t('CONVERSATION.REPLYBOX.FORMAT_MODE.DISABLE_MARKDOWN');
+    },
+    formatModeIcon() {
+      // More distinctive icons
+      return this.isPlainTextMode ? 'i-ph-file-text' : 'i-ph-text-strikethrough';
+    },
   },
   mounted() {
     ActiveStorage.start();
@@ -284,6 +316,12 @@ export default {
   methods: {
     toggleMessageSignature() {
       this.setSignatureFlagForInbox(this.channelType, !this.sendWithSignature);
+    },
+    toggleFormatMode() {
+      const newMode = this.isPlainTextMode ? 'markdown' : 'plain';
+      this.setFormatModeForInbox(this.channelType, newMode);
+      this.$emit('formatModeChanged', newMode);
+      this.$forceUpdate();
     },
     replaceText(text) {
       this.$emit('replaceText', text);
@@ -386,6 +424,16 @@ export default {
         sm
         :aria-pressed="buttonBuilderEnabled"
         @click="$emit('toggleButtonBuilder')"
+      />
+      <NextButton
+        v-if="showFormatModeToggle"
+        v-tooltip.top-end="formatModeToggleTooltip"
+        :icon="formatModeIcon"
+        :variant="isPlainTextMode ? 'solid' : 'faded'"
+        color="slate"
+        sm
+        :aria-pressed="isPlainTextMode"
+        @click="toggleFormatMode"
       />
       <NextButton
         v-if="enableWhatsAppTemplates"

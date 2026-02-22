@@ -95,6 +95,19 @@ const setQuotedReplyFlagForInbox = (channelType, value, updateUISettings) => {
 };
 
 /**
+ * Sets the format mode (markdown/plain) for a specific channel type.
+ * @param {string} channelType - The type of the channel.
+ * @param {string} value - The format mode: 'markdown' or 'plain'.
+ * @param {Function} updateUISettings - Function to update UI settings.
+ */
+const setFormatModeForInbox = (channelType, value, updateUISettings) => {
+  if (!channelType) return;
+
+  const slugifiedChannel = slugifyChannel(channelType);
+  updateUISettings({ [`${slugifiedChannel}_format_mode`]: value });
+};
+
+/**
  * Fetches the signature flag for a specific channel type from UI settings.
  * @param {string} channelType - The type of the channel.
  * @param {Object} uiSettings - Reactive UI settings object.
@@ -112,6 +125,19 @@ const fetchQuotedReplyFlagFromUISettings = (channelType, uiSettings) => {
 
   const slugifiedChannel = slugifyChannel(channelType);
   return uiSettings.value[`${slugifiedChannel}_quoted_reply_enabled`];
+};
+
+/**
+ * Fetches the format mode for a specific channel type from UI settings.
+ * @param {string} channelType - The type of the channel.
+ * @param {Object} uiSettings - Reactive UI settings object.
+ * @returns {string} The format mode: 'markdown' (default) or 'plain'.
+ */
+const fetchFormatModeFromUISettings = (channelType, uiSettings) => {
+  if (!channelType) return 'markdown';
+
+  const slugifiedChannel = slugifyChannel(channelType);
+  return uiSettings.value[`${slugifiedChannel}_format_mode`] || 'markdown';
 };
 
 /**
@@ -165,6 +191,10 @@ export function useUISettings() {
       setQuotedReplyFlagForInbox(channelType, value, updateUISettings),
     fetchQuotedReplyFlagFromUISettings: channelType =>
       fetchQuotedReplyFlagFromUISettings(channelType, uiSettings),
+    setFormatModeForInbox: (channelType, value) =>
+      setFormatModeForInbox(channelType, value, updateUISettings),
+    fetchFormatModeFromUISettings: channelType =>
+      fetchFormatModeFromUISettings(channelType, uiSettings),
     isEditorHotKeyEnabled: key => isEditorHotKeyEnabled(key, uiSettings),
   };
 }

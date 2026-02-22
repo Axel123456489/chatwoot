@@ -89,6 +89,7 @@ const props = defineProps({
   medium: { type: String, default: '' },
   showImageResizeToolbar: { type: Boolean, default: false }, // A kill switch to show or hide the image toolbar
   focusOnMount: { type: Boolean, default: true },
+  isPlainTextMode: { type: Boolean, default: false }, // Disables markdown formatting when true
 });
 
 const emit = defineEmits([
@@ -122,6 +123,11 @@ const effectiveChannelType = computed(() =>
 const editorSchema = computed(() => {
   if (!props.channelType) return messageSchema;
 
+  // Use plain schema (no marks/nodes) when in plain text mode
+  if (props.isPlainTextMode) {
+    return buildMessageSchema([], []);
+  }
+
   const formatType = props.isPrivate
     ? PRIVATE_NOTE_FORMATTING
     : effectiveChannelType.value;
@@ -133,6 +139,11 @@ const editorSchema = computed(() => {
 });
 
 const editorMenuOptions = computed(() => {
+  // Hide menu in plain text mode
+  if (props.isPlainTextMode) {
+    return [];
+  }
+
   const formatType = props.isPrivate
     ? PRIVATE_NOTE_FORMATTING
     : effectiveChannelType.value || DEFAULT_FORMATTING;
@@ -771,6 +782,13 @@ watch(
 
 watch(
   computed(() => props.isPrivate),
+  () => {
+    reloadState(props.modelValue);
+  }
+);
+
+watch(
+  computed(() => props.isPlainTextMode),
   () => {
     reloadState(props.modelValue);
   }

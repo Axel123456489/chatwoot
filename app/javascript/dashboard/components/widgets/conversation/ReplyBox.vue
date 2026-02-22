@@ -95,6 +95,7 @@ export default {
       fetchSignatureFlagFromUISettings,
       setQuotedReplyFlagForInbox,
       fetchQuotedReplyFlagFromUISettings,
+      fetchFormatModeFromUISettings,
     } = useUISettings();
 
     const replyEditor = useTemplateRef('replyEditor');
@@ -107,6 +108,7 @@ export default {
       fetchSignatureFlagFromUISettings,
       setQuotedReplyFlagForInbox,
       fetchQuotedReplyFlagFromUISettings,
+      fetchFormatModeFromUISettings,
       replyEditor,
       copilot,
       shortcutKey,
@@ -338,6 +340,10 @@ export default {
     },
     sendWithSignature() {
       return this.fetchSignatureFlagFromUISettings(this.channelType);
+    },
+    isPlainTextMode() {
+      const mode = this.fetchFormatModeFromUISettings(this.channelType);
+      return mode === 'plain';
     },
     conversationId() {
       return this.currentChat.id;
@@ -1014,6 +1020,15 @@ export default {
           };
 
           attachmentPayload = this.setReplyToInPayload(attachmentPayload);
+
+          // Add format mode for attachments with captions
+          if (this.isPlainTextMode && caption) {
+            attachmentPayload.contentAttributes = {
+              ...attachmentPayload.contentAttributes,
+              format_mode: 'plain',
+            };
+          }
+
           multipleMessagePayload.push(attachmentPayload);
           // For WhatsApp, only the first attachment gets a caption
           if (!this.isAnInstagramChannel) caption = '';
@@ -1047,6 +1062,14 @@ export default {
             )
               ? 'cta'
               : 'quick_reply',
+          };
+        }
+
+        // Add format mode indicator to content_attributes
+        if (this.isPlainTextMode) {
+          messagePayload.contentAttributes = {
+            ...messagePayload.contentAttributes,
+            format_mode: 'plain',
           };
         }
 
@@ -1103,6 +1126,14 @@ export default {
           )
             ? 'cta'
             : 'quick_reply',
+        };
+      }
+
+      // Add format mode indicator to content_attributes
+      if (this.isPlainTextMode) {
+        messagePayload.contentAttributes = {
+          ...messagePayload.contentAttributes,
+          format_mode: 'plain',
         };
       }
 
@@ -1321,6 +1352,7 @@ export default {
           allow-signature
           :channel-type="channelType"
           :medium="inbox.medium"
+          :is-plain-text-mode="isPlainTextMode"
           @typing-off="onTypingOff"
           @typing-on="onTypingOn"
           @focus="onFocus"
