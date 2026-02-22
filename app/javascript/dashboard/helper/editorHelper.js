@@ -377,11 +377,12 @@ export function setURLWithQueryAndSize(selectedImageNode, size, editorView) {
  * @param {string} text - Plain text content with \n line breaks
  * @returns {Object} - A ProseMirror document fragment
  */
-const parsePlainTextToNodes = (schema, text) => {
-  const { doc, paragraph, hard_break } = schema.nodes;
+const parsePlainTextToNodesInternal = (schema, text) => {
+  const { paragraph, hard_break } = schema.nodes;
+  const normalizedText = (text || '').replace(/\r\n?/g, '\n');
   
-  // Split by double line breaks to create paragraphs
-  const paragraphs = text.split(/\n\n+/);
+  // Split by exact double line breaks to avoid collapsing consecutive blank lines
+  const paragraphs = normalizedText.split('\n\n');
   
   const paragraphNodes = paragraphs.map(paragraphText => {
     if (!paragraphText.trim()) {
@@ -399,7 +400,7 @@ const parsePlainTextToNodes = (schema, text) => {
         content.push(schema.text(line));
       }
       // Add hard break between lines (but not after the last line)
-      if (index < lines.length - 1) {
+      if (index < lines.length - 1 && hard_break) {
         content.push(hard_break.create());
       }
     });
@@ -407,8 +408,29 @@ const parsePlainTextToNodes = (schema, text) => {
     return paragraph.create(null, content);
   });
   
-  // Return a document node containing all paragraphs
-  return doc.create(null, paragraphNodes);
+  return paragraphNodes;
+};
+
+export const parsePlainTextToParagraphNodes = (text, schema) => {
+  const { paragraph } = schema.nodes;
+  const normalizedText = (text || '').replace(/\r\n?/g, '\n');
+
+  return normalizedText.split('\n').map(line => {
+    if (!line) {
+      return paragraph.create(null, []);
+    }
+
+    return paragraph.create(null, [schema.text(line)]);
+  });
+};
+
+const parsePlainTextToDocument = (schema, text) => {
+  const { doc } = schema.nodes;
+  return doc.create(null, parsePlainTextToParagraphNodes(text, schema));
+};
+
+export const parsePlainTextToNodes = (text, schema) => {
+  return parsePlainTextToNodesInternal(schema, text);
 };
 
 /**
@@ -469,13 +491,11 @@ const nodeCreators = {
     const type = contentType || 'markdown';
     const node =
       type === 'plain_text'
-        ? parsePlainTextToNodes(editorView.state.schema, updatedMessage)
+        ? parsePlainTextToDocument(editorView.state.schema, updatedMessage)
         : createNode(editorView, 'cannedResponse', updatedMessage);
 
     const adjustedFrom =
-      type === 'plain_text' || node.textContent === updatedMessage
-        ? from
-        : from - 1;
+      node.textContent === updatedMessage ? from : Math.max(from - 1, 0);
 
     return {
       node,
