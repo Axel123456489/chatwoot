@@ -283,12 +283,12 @@ export default {
         : this.$t('WHATSAPP.BUTTON_BUILDER.SHOW_TOOLTIP');
     },
     showFormatModeToggle() {
-      // Show only for WhatsApp channels and when not in private note mode
+      // Show for all text-based channels except Email and Voice
+      // Email requires HTML formatting, Voice is not text-based
       const show = (
         !this.isOnPrivateNote &&
-        (this.isAWhatsAppChannel ||
-          this.isATwilioWhatsAppChannel ||
-          this.is360DialogWhatsAppChannel)
+        !this.isAnEmailChannel &&
+        !this.isAVoiceChannel
       );
       return show;
     },
