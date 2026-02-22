@@ -28,6 +28,14 @@ vi.mock('dashboard/composables/store', () => ({
 describe('useUISettings', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    // Reset to default state before each test
+    getUISettingsMock.value = {
+      is_ct_labels_open: true,
+      conversation_sidebar_items_order: DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
+      contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
+      editor_message_key: 'enter',
+      channel_email_quoted_reply_enabled: true,
+    };
   });
 
   it('returns uiSettings', () => {
