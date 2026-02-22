@@ -409,6 +409,47 @@ export function stripUnsupportedFormatting(content, schema) {
  */
 
 /**
+ * Parses plain text content with line breaks into a ProseMirror document fragment.
+ * Converts double line breaks into separate paragraphs and single line breaks into hard breaks.
+ * @param {Object} schema - The editor schema
+ * @param {string} text - Plain text content with \n line breaks
+ * @returns {Object} - A ProseMirror document fragment
+ */
+const parsePlainTextToNodes = (schema, text) => {
+  const { doc, paragraph, hard_break } = schema.nodes;
+  
+  // Split by double line breaks to create paragraphs
+  const paragraphs = text.split(/\n\n+/);
+  
+  const paragraphNodes = paragraphs.map(paragraphText => {
+    if (!paragraphText.trim()) {
+      // Empty paragraph
+      return paragraph.create(null, []);
+    }
+    
+    // Split by single line breaks to create hard breaks
+    const lines = paragraphText.split('\n');
+    const content = [];
+    
+    lines.forEach((line, index) => {
+      if (line) {
+        // Use schema.text() directly to create text nodes
+        content.push(schema.text(line));
+      }
+      // Add hard break between lines (but not after the last line)
+      if (index < lines.length - 1) {
+        content.push(hard_break.create());
+      }
+    });
+    
+    return paragraph.create(null, content);
+  });
+  
+  // Return a document node containing all paragraphs
+  return doc.create(null, paragraphNodes);
+};
+
+/**
  * Centralized node creation function that handles the creation of different types of nodes based on the specified type.
  * @param {Object} editorView - The editor view instance.
  * @param {string} nodeType - The type of node to create ('mention', 'cannedResponse', 'variable', 'emoji').
@@ -470,13 +511,14 @@ const nodeCreators = {
       message: content,
       variables,
     });
-    
-    // Check content type: if plain_text, insert as text node; otherwise parse as markdown
+
+    // Check content type: if plain_text, parse with line breaks; otherwise parse as markdown
     const type = contentType || 'markdown';
-    const node = type === 'plain_text'
-      ? editorView.state.schema.text(updatedMessage)
-      : createNode(editorView, 'cannedResponse', updatedMessage);
-    
+    const node =
+      type === 'plain_text'
+        ? parsePlainTextToNodes(editorView.state.schema, updatedMessage)
+        : createNode(editorView, 'cannedResponse', updatedMessage);
+
     return {
       node,
       from: type === 'plain_text' ? from : (node.textContent === updatedMessage ? from : from - 1),

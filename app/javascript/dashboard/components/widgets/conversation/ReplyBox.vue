@@ -96,6 +96,7 @@ export default {
       fetchSignatureFlagFromUISettings,
       setQuotedReplyFlagForInbox,
       fetchQuotedReplyFlagFromUISettings,
+      fetchFormatModeFromUISettings,
     } = useUISettings();
 
     const replyEditor = useTemplateRef('replyEditor');
@@ -108,6 +109,7 @@ export default {
       fetchSignatureFlagFromUISettings,
       setQuotedReplyFlagForInbox,
       fetchQuotedReplyFlagFromUISettings,
+      fetchFormatModeFromUISettings,
       replyEditor,
       copilot,
       shortcutKey,
@@ -349,6 +351,10 @@ export default {
     },
     sendWithSignature() {
       return this.fetchSignatureFlagFromUISettings(this.channelType);
+    },
+    isPlainTextMode() {
+      const mode = this.fetchFormatModeFromUISettings(this.channelType);
+      return mode === 'plain';
     },
     conversationId() {
       return this.currentChat.id;
@@ -1091,6 +1097,15 @@ export default {
           };
 
           attachmentPayload = this.setReplyToInPayload(attachmentPayload);
+
+          // Add format mode for attachments with captions
+          if (this.isPlainTextMode && caption) {
+            attachmentPayload.contentAttributes = {
+              ...attachmentPayload.contentAttributes,
+              format_mode: 'plain',
+            };
+          }
+
           multipleMessagePayload.push(attachmentPayload);
           // For WhatsApp, only the first attachment gets a caption
           if (!this.isAnInstagramChannel) caption = '';
@@ -1115,6 +1130,27 @@ export default {
         };
 
         messagePayload = this.setReplyToInPayload(messagePayload);
+
+        // Add WhatsApp buttons to content_attributes if present
+        if (this.whatsappButtons && this.whatsappButtons.length > 0) {
+          messagePayload.contentAttributes = {
+            ...messagePayload.contentAttributes,
+            whatsapp_buttons: this.whatsappButtons,
+            whatsapp_interactive_type: this.whatsappButtons.some(
+              btn => btn.type === 'url' || btn.type === 'phone_number'
+            )
+              ? 'cta'
+              : 'quick_reply',
+          };
+        }
+
+        // Add format mode indicator to content_attributes
+        if (this.isPlainTextMode) {
+          messagePayload.contentAttributes = {
+            ...messagePayload.contentAttributes,
+            format_mode: 'plain',
+          };
+        }
 
         multipleMessagePayload.push(messagePayload);
       }
@@ -1154,6 +1190,28 @@ export default {
       if (this.toEmails && !this.isOnPrivateNote) {
         messagePayload.toEmails = this.toEmails;
       }
+
+      // Add WhatsApp buttons to content_attributes if present
+      if (this.whatsappButtons && this.whatsappButtons.length > 0) {
+        messagePayload.contentAttributes = {
+          ...messagePayload.contentAttributes,
+          whatsapp_buttons: this.whatsappButtons,
+          whatsapp_interactive_type: this.whatsappButtons.some(
+            btn => btn.type === 'url' || btn.type === 'phone_number'
+          )
+            ? 'cta'
+            : 'quick_reply',
+        };
+      }
+
+      // Add format mode indicator to content_attributes
+      if (this.isPlainTextMode) {
+        messagePayload.contentAttributes = {
+          ...messagePayload.contentAttributes,
+          format_mode: 'plain',
+        };
+      }
+
       return messagePayload;
     },
     setCcEmails(value) {
@@ -1327,6 +1385,7 @@ export default {
           allow-signature
           :channel-type="channelType"
           :medium="inbox.medium"
+          :is-plain-text-mode="isPlainTextMode"
           @typing-off="onTypingOff"
           @typing-on="onTypingOn"
           @focus="onFocus"

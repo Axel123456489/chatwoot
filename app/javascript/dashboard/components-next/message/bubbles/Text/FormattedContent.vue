@@ -12,11 +12,19 @@ const props = defineProps({
   },
 });
 
-const { variant } = useMessageContext();
+const { variant, contentAttributes } = useMessageContext();
 
 const formattedContent = computed(() => {
   if (variant.value === MESSAGE_VARIANTS.ACTIVITY) {
     return props.content;
+  }
+
+  // If message was sent in plain text mode, don't apply markdown formatting
+  // Support both camelCase (formatMode) and snake_case (format_mode) for compatibility
+  const formatMode = contentAttributes.value?.formatMode || contentAttributes.value?.format_mode;
+  if (formatMode === 'plain') {
+    // Convert line breaks to <br> tags for plain text display
+    return props.content.replace(/\n/g, '<br>');
   }
 
   return new MessageFormatter(props.content).formattedMessage;

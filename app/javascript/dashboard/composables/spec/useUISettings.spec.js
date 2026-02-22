@@ -160,4 +160,60 @@ describe('useUISettings', () => {
     );
     expect(isEditorHotKeyEnabled('non_existent_key')).toBe(false);
   });
+
+  describe('Format Mode Settings', () => {
+    it('sets format mode for inbox correctly', () => {
+      const { setFormatModeForInbox } = useUISettings();
+      setFormatModeForInbox('Channel::Whatsapp', 'plain');
+      expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
+        uiSettings: {
+          is_ct_labels_open: true,
+          conversation_sidebar_items_order:
+            DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
+          contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
+          editor_message_key: 'enter',
+          channel_email_quoted_reply_enabled: true,
+          channel_whatsapp_format_mode: 'plain',
+        },
+      });
+    });
+
+    it('sets format mode to markdown for inbox', () => {
+      const { setFormatModeForInbox } = useUISettings();
+      setFormatModeForInbox('Channel::Whatsapp', 'markdown');
+      expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
+        uiSettings: {
+          is_ct_labels_open: true,
+          conversation_sidebar_items_order:
+            DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
+          contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
+          editor_message_key: 'enter',
+          channel_email_quoted_reply_enabled: true,
+          channel_whatsapp_format_mode: 'markdown',
+        },
+      });
+    });
+
+    it('fetches format mode from UI settings correctly when set to plain', () => {
+      getUISettingsMock.value.channel_whatsapp_format_mode = 'plain';
+      const { fetchFormatModeFromUISettings } = useUISettings();
+      expect(fetchFormatModeFromUISettings('Channel::Whatsapp')).toBe('plain');
+    });
+
+    it('fetches format mode from UI settings defaults to markdown when not set', () => {
+      getUISettingsMock.value.channel_whatsapp_format_mode = undefined;
+      const { fetchFormatModeFromUISettings } = useUISettings();
+      expect(fetchFormatModeFromUISettings('Channel::Whatsapp')).toBe(
+        'markdown'
+      );
+    });
+
+    it('fetches format mode from UI settings correctly when set to markdown', () => {
+      getUISettingsMock.value.channel_whatsapp_format_mode = 'markdown';
+      const { fetchFormatModeFromUISettings } = useUISettings();
+      expect(fetchFormatModeFromUISettings('Channel::Whatsapp')).toBe(
+        'markdown'
+      );
+    });
+  });
 });
