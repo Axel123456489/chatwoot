@@ -89,6 +89,11 @@ export default {
       this.v$.content.$reset();
     },
     editCannedResponse() {
+      const content =
+        this.contentType === 'plain_text'
+          ? String(this.content || '').replace(/\r\n?/g, '\n')
+          : this.content;
+
       // Show loading on button
       this.editCanned.showLoading = true;
       // Make API Calls
@@ -96,7 +101,7 @@ export default {
         .dispatch('updateCannedResponse', {
           id: this.id,
           short_code: this.shortCode,
-          content: this.content,
+          content,
           content_type: this.contentType,
           blob_ids: this.attachmentIds,
           // Always include custom_role_id in updates so user can also clear it (set to null for All)

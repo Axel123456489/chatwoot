@@ -59,6 +59,7 @@ import {
   calculateMenuPosition,
   getEffectiveChannelType,
   stripUnsupportedFormatting,
+  parsePlainTextToParagraphNodes,
 } from 'dashboard/helper/editorHelper';
 import {
   hasPressedEnterAndNotCmdOrShift,
@@ -157,10 +158,18 @@ const editorMenuOptions = computed(() => {
 
 const createState = (content, placeholder, plugins = [], methods = {}) => {
   const schema = editorSchema.value;
-  // Strip unsupported formatting before parsing to prevent "Token type not supported" errors
-  const sanitizedContent = stripUnsupportedFormatting(content, schema);
+  const doc = props.isPlainTextMode
+    ? schema.nodes.doc.create(
+        null,
+        parsePlainTextToParagraphNodes(content || '', schema)
+      )
+    : new MessageMarkdownTransformer(schema).parse(
+        // Strip unsupported formatting before parsing to prevent "Token type not supported" errors
+        stripUnsupportedFormatting(content, schema)
+      );
+
   return EditorState.create({
-    doc: new MessageMarkdownTransformer(schema).parse(sanitizedContent),
+    doc,
     plugins: buildEditor({
       schema,
       placeholder,
@@ -231,6 +240,15 @@ const handleCopilotAction = actionKey => {
 };
 
 const contentFromEditor = () => {
+  if (props.isPlainTextMode) {
+    return editorView.state.doc
+      .textBetween(0, editorView.state.doc.content.size, '\n', '\n')
+      .replace(/\r\n?/g, '\n')
+      .replace(/^\n\n(?=\S)/, '')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/[ \t]+$/g, '');
+  }
+
   return MessageMarkdownSerializer.serialize(editorView.state.doc);
 };
 
@@ -858,7 +876,11 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 </script>
 
 <template>
-  <div ref="editorRoot" class="relative w-full">
+  <div
+    ref="editorRoot"
+    class="relative w-full"
+    :class="{ 'is-plain-text-mode': isPlainTextMode }"
+  >
     <TagAgents
       v-if="showUserMentions && isPrivate"
       :search-key="mentionSearchKey"
@@ -995,6 +1017,20 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 
 .ProseMirror-woot-style {
   @apply overflow-auto min-h-[5rem] max-h-[7.5rem];
+}
+
+.is-plain-text-mode {
+  .ProseMirror-menubar-wrapper {
+    > .ProseMirror {
+      p {
+        margin: 0 !important;
+      }
+
+      p + p {
+        @apply mt-1;
+      }
+    }
+  }
 }
 
 .ProseMirror-prompt {

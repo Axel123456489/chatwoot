@@ -1085,9 +1085,14 @@ export default {
         let caption =
           this.isAnInstagramChannel || this.isATiktokChannel ? '' : message;
         this.attachedFiles.forEach(attachment => {
-          const attachedFile = this.globalConfig.directUploadsEnabled
-            ? attachment.blobSignedId
-            : attachment.resource.file;
+          const attachedFile =
+            attachment.blobSignedId ||
+            (this.globalConfig.directUploadsEnabled
+              ? attachment.blobSignedId
+              : attachment.resource?.file);
+
+          if (!attachedFile) return;
+
           let attachmentPayload = {
             conversationId: this.currentChat.id,
             files: [attachedFile],
@@ -1166,7 +1171,6 @@ export default {
         private: this.isPrivate,
         sender: this.sender,
       };
-
       messagePayload = this.setReplyToInPayload(messagePayload);
 
       if (this.attachedFiles && this.attachedFiles.length) {

@@ -53,8 +53,13 @@ export default {
       this.$store.dispatch('getCannedResponse', { searchKey: this.searchKey });
     },
     handleMentionClick(item = {}) {
-      // Emitir el contenido, tipo de contenido, y los archivos adjuntos si existen
-      this.$emit('replace', item.description, item.files, item.contentType);
+      // Emitir contenido normalizado para plain_text para evitar CRLF inconsistentes
+      const normalizedContent =
+        item.contentType === 'plain_text'
+          ? String(item.description || '').replace(/\r\n?/g, '\n')
+          : item.description;
+
+      this.$emit('replace', normalizedContent, item.files, item.contentType);
     },
     hasAttachments(item = {}) {
       return Array.isArray(item.files) && item.files.length > 0;

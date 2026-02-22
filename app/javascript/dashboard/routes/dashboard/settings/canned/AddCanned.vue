@@ -82,13 +82,18 @@ export default {
       this.v$.content.$reset();
     },
     addCannedResponse() {
+      const content =
+        this.contentType === 'plain_text'
+          ? String(this.content || '').replace(/\r\n?/g, '\n')
+          : this.content;
+
       // Show loading on button
       this.addCanned.showLoading = true;
       // Make API Calls
       this.$store
         .dispatch('createCannedResponse', {
           short_code: this.shortCode,
-          content: this.content,
+          content,
           content_type: this.contentType,
           blob_ids: this.attachmentIds,
           // Include custom_role_id only when a specific role is selected

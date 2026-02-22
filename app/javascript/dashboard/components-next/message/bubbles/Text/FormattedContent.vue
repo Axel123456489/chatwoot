@@ -21,10 +21,15 @@ const formattedContent = computed(() => {
 
   // If message was sent in plain text mode, don't apply markdown formatting
   // Support both camelCase (formatMode) and snake_case (format_mode) for compatibility
-  const formatMode = contentAttributes.value?.formatMode || contentAttributes.value?.format_mode;
+  const formatMode =
+    contentAttributes.value?.formatMode || contentAttributes.value?.format_mode;
   if (formatMode === 'plain') {
-    // Convert line breaks to <br> tags for plain text display
-    return props.content.replace(/\n/g, '<br>');
+    // Clean any markdown hard break artifacts (space+backslash+newline or backslash+newline)
+    // that might have been serialized, then convert line breaks to <br> tags
+    let plainContent = props.content;
+    plainContent = plainContent.replace(/ \\\n/g, '\n');
+    plainContent = plainContent.replace(/\\\n/g, '\n');
+    return plainContent.replace(/\n/g, '<br>');
   }
 
   return new MessageFormatter(props.content).formattedMessage;
