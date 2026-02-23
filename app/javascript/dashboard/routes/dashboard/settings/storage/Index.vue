@@ -277,6 +277,12 @@ const checkCleanupStatus = async (showAlert = true) => {
       if (!cleanupStatusCheckInterval) {
         startCleanupPolling();
       }
+    } else if (status === 'interrupted') {
+      stopCleanupPolling();
+      cleanupLoading.value = false;
+      if (showAlert) {
+        useAlert(t('STORAGE_MGMT.CLEANUP_INTERRUPTED'));
+      }
     } else if (status === 'error') {
       stopCleanupPolling();
       cleanupLoading.value = false;
@@ -357,6 +363,12 @@ const checkDeduplicationStatus = async (showAlert = true) => {
       deduplicateLoading.value = true;
       if (!deduplicationStatusCheckInterval) {
         startDeduplicationPolling();
+      }
+    } else if (status === 'interrupted') {
+      stopDeduplicationPolling();
+      deduplicateLoading.value = false;
+      if (showAlert) {
+        useAlert(t('STORAGE_MGMT.DEDUPLICATE_INTERRUPTED'));
       }
     } else if (status === 'error') {
       stopDeduplicationPolling();

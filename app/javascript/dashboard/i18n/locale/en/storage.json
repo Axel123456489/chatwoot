@@ -51,6 +51,7 @@
     "CLEANUP_QUEUED": "Cleanup job started. This may take a few minutes...",
     "CLEANUP_SUCCESS": "Successfully cleaned up {count} orphan files and freed {size}",
     "CLEANUP_ERROR": "Failed to cleanup orphan files. Please try again.",
+    "CLEANUP_INTERRUPTED": "Cleanup was interrupted (Sidekiq restarted). Please start it again.",
     
     "VIEW_DUPLICATES_TITLE": "View Duplicate Files",
     "VIEW_DUPLICATES_DESC": "See which files are duplicated in your storage",
@@ -63,6 +64,7 @@
     "DEDUPLICATE_QUEUED": "Deduplication job started. This may take several minutes...",
     "DEDUPLICATE_SUCCESS": "Successfully deduplicated {count} files and saved {size}",
     "DEDUPLICATE_ERROR": "Failed to deduplicate files. Please try again.",
+    "DEDUPLICATE_INTERRUPTED": "Deduplication was interrupted (Sidekiq restarted). Please start it again.",
     
     "DUPLICATES_LIST_TITLE": "Duplicate Files",
     "DUPLICATES_LIST_SUBTITLE": "Showing top {count} duplicate file groups",
