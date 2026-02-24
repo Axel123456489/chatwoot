@@ -36,6 +36,9 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/filter`, payload.queryData, {
       params: {
         page: payload.page,
+        ...(payload.conversationType && {
+          conversation_type: payload.conversationType,
+        }),
       },
     });
   }
