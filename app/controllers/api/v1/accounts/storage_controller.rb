@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/ClassLength
 class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   before_action :check_authorization
 
@@ -15,7 +16,7 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
 
     # Check if analysis is already in progress
     status = Rails.cache.read("#{cache_key}:status")
-    
+
     if status == 'in_progress'
       return render json: {
         status: 'in_progress',
@@ -36,7 +37,7 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
     if async_mode || should_use_async?
       Rails.logger.info("[Storage] Queuing async analysis for account #{Current.account.id}")
       StorageAnalysisJob.perform_later(Current.account.id)
-      
+
       return render json: {
         status: 'queued',
         message: 'Analysis started in background. Use /storage/status to check progress.',
@@ -92,12 +93,10 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
     cache_key = "storage_analysis:#{Current.account.id}"
     status = Rails.cache.read("#{cache_key}:status")
     cached_result = Rails.cache.read(cache_key)
-    
+
     # Si hay datos cacheados pero no hay status (status expiró), considerar como completado
-    if cached_result.present? && status.blank?
-      status = 'completed'
-    end
-    
+    status = 'completed' if cached_result.present? && status.blank?
+
     case status
     when 'in_progress'
       render json: { status: 'in_progress', message: 'Analysis is currently running' }
@@ -158,9 +157,9 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   # Note: Runs in background via Sidekiq
   def cleanup_orphans
     Rails.logger.info("[Storage] Enqueuing orphan cleanup for account #{Current.account.id}")
-    
+
     StorageCleanupJob.perform_later(Current.account.id)
-    
+
     render json: {
       message: 'Cleanup job enqueued',
       status: 'in_progress'
@@ -174,7 +173,7 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   # Get status of cleanup job
   def cleanup_status
     status_data = Rails.cache.read("storage_cleanup_status:#{Current.account.id}")
-    
+
     if status_data
       render json: status_data
     else
@@ -193,9 +192,9 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   # Note: Runs in background via Sidekiq
   def deduplicate
     Rails.logger.info("[Storage] Enqueuing deduplication for account #{Current.account.id}")
-    
+
     StorageDeduplicationJob.perform_later(Current.account.id)
-    
+
     render json: {
       message: 'Deduplication job enqueued',
       status: 'in_progress'
@@ -209,7 +208,7 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
   # Get status of deduplication job
   def deduplication_status
     status_data = Rails.cache.read("storage_deduplication_status:#{Current.account.id}")
-    
+
     if status_data
       render json: status_data
     else
@@ -223,6 +222,40 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
     render json: { error: 'Failed to get deduplication status' }, status: :internal_server_error
   end
 
+  # DELETE /api/v1/accounts/:account_id/storage/cancel_deduplication
+  def cancel_deduplication
+    account_id = Current.account.id
+    status_data = Rails.cache.read("storage_deduplication_status:#{account_id}")
+    current_status = status_data&.dig(:status) || status_data&.dig('status') || 'not_started'
+
+    return render json: { error: 'No deduplication in progress' }, status: :unprocessable_entity unless current_status == 'in_progress'
+
+    Rails.cache.write("storage_deduplication_cancel:#{account_id}", true, expires_in: 10.minutes)
+    Rails.logger.info("[Storage] Deduplication cancel requested for account #{account_id}")
+
+    render json: { status: 'cancelling', message: 'Cancellation requested. The process will stop at the next checkpoint.' }
+  rescue StandardError => e
+    Rails.logger.error("[Storage] Cancel deduplication error: #{e.message}")
+    render json: { error: 'Failed to cancel deduplication' }, status: :internal_server_error
+  end
+
+  # DELETE /api/v1/accounts/:account_id/storage/cancel_cleanup
+  def cancel_cleanup
+    account_id = Current.account.id
+    status_data = Rails.cache.read("storage_cleanup_status:#{account_id}")
+    current_status = status_data&.dig(:status) || status_data&.dig('status') || 'not_started'
+
+    return render json: { error: 'No cleanup in progress' }, status: :unprocessable_entity unless current_status == 'in_progress'
+
+    Rails.cache.write("storage_cleanup_cancel:#{account_id}", true, expires_in: 10.minutes)
+    Rails.logger.info("[Storage] Cleanup cancel requested for account #{account_id}")
+
+    render json: { status: 'cancelling', message: 'Cancellation requested. The process will stop at the next checkpoint.' }
+  rescue StandardError => e
+    Rails.logger.error("[Storage] Cancel cleanup error: #{e.message}")
+    render json: { error: 'Failed to cancel cleanup' }, status: :internal_server_error
+  end
+
   private
 
   # Determine if analysis should run asynchronously
@@ -232,14 +265,14 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
     message_count = Message.joins(:conversation)
                            .where(conversations: { account_id: Current.account.id })
                            .count
-    
+
     # If >10k messages, assume it's a large account
     return true if message_count > 10_000
-    
+
     # For smaller accounts, check blob count (still faster than size)
     blob_count_sql = AccountStorageService.new(Current.account).send(:account_blob_ids_query).to_sql
     blob_count = ActiveRecord::Base.connection.select_value("SELECT COUNT(*) FROM (#{blob_count_sql}) AS subquery")
-    
+
     blob_count.to_i > 5_000
   rescue StandardError => e
     Rails.logger.warn("[Storage] Error checking account size: #{e.message}, defaulting to async")
@@ -250,3 +283,4 @@ class Api::V1::Accounts::StorageController < Api::V1::Accounts::BaseController
     raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
   end
 end
+# rubocop:enable Metrics/ClassLength

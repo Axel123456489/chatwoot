@@ -7,7 +7,7 @@
     "ANALYZE_ERROR": "Error al analizar el almacenamiento. Por favor intenta de nuevo.",
     "ANALYZE_QUEUED": "El análisis de almacenamiento ha comenzado en segundo plano. Esto puede tomar unos minutos para cuentas grandes.",
     "DUPLICATES_ERROR": "Error al cargar duplicados. Por favor intenta de nuevo.",
-    
+
     "ANALYSIS_IN_PROGRESS": "Análisis en Progreso",
     "ANALYSIS_IN_PROGRESS_DESC": "El análisis de almacenamiento se está ejecutando en segundo plano. Los resultados aparecerán automáticamente cuando se complete.",
     "ANALYSIS_ERROR_TITLE": "Análisis Fallido",
@@ -20,10 +20,10 @@
     "HOURS_AGO": "hace {hours} horas",
     "DATA_MAY_BE_OUTDATED": "Los datos pueden estar desactualizados",
     "ANALYSIS_TOOK": "Análisis tomó {seconds}s",
-    
+
     "OVERVIEW_TITLE": "Resumen de Almacenamiento",
     "OVERVIEW_SUBTITLE": "Resumen del uso de almacenamiento de tu cuenta",
-    
+
     "TOTAL_STORAGE": "Almacenamiento Total",
     "TOTAL_FILES": "{count} archivos",
     "ORPHAN_FILES": "Archivos Huérfanos",
@@ -31,40 +31,44 @@
     "DUPLICATE_WASTE": "Espacio Desperdiciado",
     "DUPLICATE_COUNT": "{count} duplicados",
     "POTENTIAL_SAVINGS": "Ahorro Potencial",
-    
+
     "BY_SOURCE_TITLE": "Almacenamiento por Fuente",
     "BY_SOURCE_SUBTITLE": "Dónde se están usando tus archivos",
     "SOURCE_MESSAGES": "Mensajes",
     "SOURCE_CANNED_RESPONSES": "Respuestas Predefinidas",
     "SOURCE_AVATARS": "Avatares",
-    
+
     "BY_TYPE_TITLE": "Almacenamiento por Tipo de Archivo",
     "BY_TYPE_SUBTITLE": "Desglose del almacenamiento por tipo de contenido",
-    
+
     "ACTIONS_TITLE": "Acciones de Limpieza",
     "ACTIONS_SUBTITLE": "Optimiza tu almacenamiento con estas acciones",
-    
+
     "CLEANUP_ORPHANS_TITLE": "Limpiar Archivos Huérfanos",
     "CLEANUP_ORPHANS_DESC": "Elimina archivos que ya no están referenciados por ningun mensaje o respuesta (operación segura)",
     "CLEANUP_ACTION": "Limpiar",
-    "CLEANUP_CONFIRM": "¿Estás seguro de que quieres eliminar {count} archivos huérfanos ({size})? Esta acción no se puede deshacer.",    "CLEANUP_QUEUED": "Trabajo de limpieza iniciado. Esto puede tardar unos minutos...",    "CLEANUP_SUCCESS": "Se limpiaron exitosamente {count} archivos huérfanos y se liberaron {size}",
+    "CLEANUP_CONFIRM": "¿Estás seguro de que quieres eliminar {count} archivos huérfanos ({size})? Esta acción no se puede deshacer.",
+    "CLEANUP_QUEUED": "Trabajo de limpieza iniciado. Esto puede tardar unos minutos...",
+    "CLEANUP_SUCCESS": "Se limpiaron exitosamente {count} archivos huérfanos y se liberaron {size}",
     "CLEANUP_ERROR": "Error al limpiar archivos huérfanos. Por favor intenta de nuevo.",
     "CLEANUP_INTERRUPTED": "La limpieza fue interrumpida (Sidekiq se reinició). Por favor inícialos de nuevo.",
-    
+
     "VIEW_DUPLICATES_TITLE": "Ver Archivos Duplicados",
     "VIEW_DUPLICATES_DESC": "Ve qué archivos están duplicados en tu almacenamiento",
     "VIEW_ACTION": "Ver Duplicados",
-    
+
     "DEDUPLICATE_TITLE": "Deduplicar Archivos",
     "DEDUPLICATE_DESC": "Elimina archivos duplicados y actualiza referencias (requiere respaldo)",
     "DEDUPLICATE_ACTION": "Deduplicar",
-    "DEDUPLICATE_CONFIRM": "¿Estás seguro de que quieres deduplicar {files} archivos duplicados ({size})? Asegúrate de tener un respaldo de la base de datos primero. Esta acción no se puede deshacer.",    "DEDUPLICATE_QUEUED": "Trabajo de deduplicación iniciado. Esto puede tardar varios minutos...",    "DEDUPLICATE_SUCCESS": "Se deduplicaron exitosamente {count} archivos y se ahorraron {size}",
+    "DEDUPLICATE_CONFIRM": "¿Estás seguro de que quieres deduplicar {files} archivos duplicados ({size})? Asegúrate de tener un respaldo de la base de datos primero. Esta acción no se puede deshacer.",
+    "DEDUPLICATE_QUEUED": "Trabajo de deduplicación iniciado. Esto puede tardar varios minutos...",
+    "DEDUPLICATE_SUCCESS": "Se deduplicaron exitosamente {count} archivos y se ahorraron {size}",
     "DEDUPLICATE_ERROR": "Error al deduplicar archivos. Por favor intenta de nuevo.",
     "DEDUPLICATE_INTERRUPTED": "La deduplicación fue interrumpida (Sidekiq se reinició). Por favor inícialos de nuevo.",
-    
+
     "DUPLICATES_LIST_TITLE": "Archivos Duplicados",
     "DUPLICATES_LIST_SUBTITLE": "Mostrando los {count} grupos de archivos duplicados principales",
-    
+
     "LARGEST_FILES_TITLE": "Archivos Más Grandes",
     "LARGEST_FILES_SUBTITLE": "Los archivos que ocupan más espacio en tu cuenta",
     "LARGEST_FILES_ACTION": "Ver Archivos Grandes",
@@ -80,6 +84,14 @@
     "FILES_LABEL": "archivos",
     "COPIES": "copias",
     "TOTAL": "total",
-    "WASTED": "desperdiciado"
+    "WASTED": "desperdiciado",
+
+    "STOP_ACTION": "Detener",
+    "DEDUPLICATE_CANCELLED": "Deduplicación detenida. El progreso hasta ahora ha sido guardado.",
+    "CLEANUP_CANCELLED": "Limpieza detenida. Los archivos limpiados hasta ahora han sido eliminados.",
+    "CANCEL_DEDUP_REQUESTED": "Solicitud de parada enviada. El proceso terminará el lote actual y luego se detendrá.",
+    "CANCEL_DEDUP_ERROR": "Error al enviar la solicitud de parada. Por favor intenta de nuevo.",
+    "CANCEL_CLEANUP_REQUESTED": "Solicitud de parada enviada. El proceso se detendrá en el próximo archivo.",
+    "CANCEL_CLEANUP_ERROR": "Error al enviar la solicitud de parada. Por favor intenta de nuevo."
   }
 }

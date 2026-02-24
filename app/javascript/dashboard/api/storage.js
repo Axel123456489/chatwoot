@@ -6,8 +6,8 @@ class StorageAPI extends ApiClient {
     super('storage', { accountScoped: true });
   }
 
-  analyze() {
-    return axios.get(`${this.url}/analyze`);
+  analyze({ force = false } = {}) {
+    return axios.get(`${this.url}/analyze`, { params: { force, async: true } });
   }
 
   status() {
@@ -36,6 +36,14 @@ class StorageAPI extends ApiClient {
 
   deduplicationStatus() {
     return axios.get(`${this.url}/deduplication_status`);
+  }
+
+  cancelDeduplication() {
+    return axios.delete(`${this.url}/cancel_deduplication`);
+  }
+
+  cancelCleanup() {
+    return axios.delete(`${this.url}/cancel_cleanup`);
   }
 }
 

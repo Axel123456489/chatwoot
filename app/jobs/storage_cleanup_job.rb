@@ -32,10 +32,10 @@ class StorageCleanupJob < ApplicationJob
 
     begin
       Rails.cache.write(status_key, {
-        status: 'in_progress',
-        started_at: Time.current.iso8601,
-        message: 'Cleaning orphan blobs...'
-      }, expires_in: LOCK_TTL)
+                          status: 'in_progress',
+                          started_at: Time.current.iso8601,
+                          message: 'Cleaning orphan blobs...'
+                        }, expires_in: LOCK_TTL)
 
       Rails.logger.info("[CleanupJob] Starting orphan cleanup for account #{account_id}")
       start_time = Time.current
@@ -44,6 +44,20 @@ class StorageCleanupJob < ApplicationJob
       result = service.cleanup_orphan_blobs
 
       elapsed = (Time.current - start_time).round(2)
+
+      if result[:cancelled]
+        Rails.logger.info("[CleanupJob] Cleanup cancelled for account #{account_id} after #{result[:cleaned_count]} blobs")
+        Rails.cache.write(status_key, {
+                            status: 'cancelled',
+                            cleaned_count: result[:cleaned_count],
+                            space_freed: result[:space_freed],
+                            cancelled_at: Time.current.iso8601,
+                            duration_seconds: elapsed,
+                            message: 'Cancelled by user'
+                          }, expires_in: 1.hour)
+        return
+      end
+
       Rails.logger.info("[CleanupJob] Completed cleanup in #{elapsed}s for account #{account_id}")
       Rails.logger.info("[CleanupJob] Results: #{result[:cleaned_count]} orphan blobs removed, " \
                         "#{(result[:space_freed].to_f / 1.gigabyte).round(2)} GB freed")
@@ -58,27 +72,28 @@ class StorageCleanupJob < ApplicationJob
 
       Rails.cache.write(status_key, cache_data, expires_in: 1.hour)
       Rails.logger.info("[CleanupJob] Results written to cache: #{status_key}")
-    rescue Sidekiq::Shutdown => e
+    rescue Sidekiq::Shutdown
       Rails.logger.warn("[CleanupJob] Sidekiq shutdown during cleanup for account #{account_id}")
       Rails.cache.write(status_key, {
-        status: 'interrupted',
-        error: 'Sidekiq was restarted while the job was running. Please start again.',
-        interrupted_at: Time.current.iso8601
-      }, expires_in: 24.hours)
+                          status: 'interrupted',
+                          error: 'Sidekiq was restarted while the job was running. Please start again.',
+                          interrupted_at: Time.current.iso8601
+                        }, expires_in: 24.hours)
       raise
     rescue StandardError => e
       Rails.logger.error("[CleanupJob] Error during cleanup for account #{account_id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
 
       Rails.cache.write(status_key, {
-        status: 'error',
-        error: e.message,
-        completed_at: Time.current.iso8601
-      }, expires_in: 1.hour)
+                          status: 'error',
+                          error: e.message,
+                          completed_at: Time.current.iso8601
+                        }, expires_in: 1.hour)
 
       raise
     ensure
       Rails.cache.delete(lock_key)
+      Rails.cache.delete("storage_cleanup_cancel:#{account_id}")
     end
   end
 
@@ -91,7 +106,7 @@ class StorageCleanupJob < ApplicationJob
     lock_value = Rails.cache.read(lock_key)
     return true unless lock_value
 
-    locked_at = Time.at(lock_value.to_i)
+    locked_at = Time.zone.at(lock_value.to_i)
     Time.current - locked_at > LOCK_TTL
   rescue StandardError
     false

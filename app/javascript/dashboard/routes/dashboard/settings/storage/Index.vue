@@ -14,7 +14,9 @@ const deduplicateConfirmDialog = ref(null);
 
 const analyzing = ref(false);
 const cleanupLoading = ref(false);
+const cancellingCleanup = ref(false);
 const deduplicateLoading = ref(false);
+const cancellingDedup = ref(false);
 const showDuplicates = ref(false);
 const duplicatesLoading = ref(false);
 const showLargestFiles = ref(false);
@@ -73,16 +75,17 @@ const lastAnalyzedAt = computed(() => {
 
 const lastAnalyzedFormatted = computed(() => {
   if (!lastAnalyzedAt.value) return '';
-  
+
   const now = new Date();
   const diffMs = now - lastAnalyzedAt.value;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
-  
+
   if (diffMins < 1) return t('STORAGE_MGMT.JUST_NOW');
-  if (diffMins < 60) return t('STORAGE_MGMT.MINUTES_AGO', { minutes: diffMins });
+  if (diffMins < 60)
+    return t('STORAGE_MGMT.MINUTES_AGO', { minutes: diffMins });
   if (diffHours < 2) return t('STORAGE_MGMT.HOURS_AGO', { hours: diffHours });
-  
+
   return lastAnalyzedAt.value.toLocaleString();
 });
 
@@ -113,6 +116,20 @@ const formatNumber = num => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
+// Detener polling
+const stopPolling = () => {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+    statusCheckInterval = null;
+  }
+};
+
+// Iniciar polling – recibe el callback a ejecutar en cada tick
+const startPolling = fn => {
+  if (statusCheckInterval) return;
+  statusCheckInterval = setInterval(fn, 3000);
+};
+
 // Verificar el estado del análisis
 const checkAnalysisStatus = async (showAlert = false) => {
   try {
@@ -133,7 +150,7 @@ const checkAnalysisStatus = async (showAlert = false) => {
       // Continuar polling si está en progreso
       analyzing.value = true;
       if (!statusCheckInterval) {
-        startPolling();
+        startPolling(() => checkAnalysisStatus(false));
       }
     } else if (status === 'timeout' || status === 'failed') {
       stopPolling();
@@ -146,50 +163,39 @@ const checkAnalysisStatus = async (showAlert = false) => {
       analyzing.value = false;
       stopPolling();
     }
-  } catch (error) {
-    console.error('Error checking analysis status:', error);
+  } catch {
     analyzing.value = false;
   }
 };
 
-// Iniciar polling para verificar el estado
-const startPolling = () => {
-  if (statusCheckInterval) return;
-  
-  statusCheckInterval = setInterval(() => {
-    checkAnalysisStatus(false);
-  }, 3000); // Verificar cada 3 segundos
-};
+const analyzeStorage = async ({ force = false } = {}) => {
+  // Don't start a new analysis if one is already running
+  if (analyzing.value) return;
 
-// Detener polling
-const stopPolling = () => {
-  if (statusCheckInterval) {
-    clearInterval(statusCheckInterval);
-    statusCheckInterval = null;
-  }
-};
-
-const analyzeStorage = async () => {
   try {
     analyzing.value = true;
     analysisStatus.value = 'in_progress';
-    const response = await StorageAPI.analyze();
-    
+    stopPolling();
+    const response = await StorageAPI.analyze({ force });
+
     // Si se puso en cola, iniciar polling
-    if (response.data.status === 'queued' || response.data.status === 'in_progress') {
-      useAlert(t('STORAGE_MGMT.ANALYZE_QUEUED'));
-      startPolling();
+    if (
+      response.data.status === 'queued' ||
+      response.data.status === 'in_progress'
+    ) {
+      if (force) useAlert(t('STORAGE_MGMT.ANALYZE_QUEUED'));
+      startPolling(() => checkAnalysisStatus(false));
     } else if (response.data.overview) {
       // Análisis síncrono completado
       storageData.value = response.data;
       analysisStatus.value = 'completed';
-      useAlert(t('STORAGE_MGMT.ANALYZE_SUCCESS'));
+      if (force) useAlert(t('STORAGE_MGMT.ANALYZE_SUCCESS'));
+      analyzing.value = false;
     }
   } catch (error) {
     analysisStatus.value = 'failed';
-    useAlert(t('STORAGE_MGMT.ANALYZE_ERROR'));
-  } finally {
     analyzing.value = false;
+    useAlert(t('STORAGE_MGMT.ANALYZE_ERROR'));
   }
 };
 
@@ -232,24 +238,18 @@ const formatDate = dateString => {
   return date.toLocaleDateString();
 };
 
-const cleanupOrphans = async () => {
-  const confirmed = await cleanupConfirmDialog.value.showConfirmation();
-
-  if (!confirmed) {
-    return;
+// Detener cleanup polling
+const stopCleanupPolling = () => {
+  if (cleanupStatusCheckInterval) {
+    clearInterval(cleanupStatusCheckInterval);
+    cleanupStatusCheckInterval = null;
   }
+};
 
-  try {
-    cleanupLoading.value = true;
-    cleanupStatus.value = 'in_progress';
-    await StorageAPI.cleanupOrphans();
-    useAlert(t('STORAGE_MGMT.CLEANUP_QUEUED'));
-    startCleanupPolling();
-  } catch (error) {
-    useAlert(t('STORAGE_MGMT.CLEANUP_ERROR'));
-    cleanupLoading.value = false;
-    cleanupStatus.value = 'failed';
-  }
+// Iniciar cleanup polling – recibe el callback a ejecutar en cada tick
+const startCleanupPolling = fn => {
+  if (cleanupStatusCheckInterval) return;
+  cleanupStatusCheckInterval = setInterval(fn, 3000);
 };
 
 // Check cleanup status
@@ -271,17 +271,24 @@ const checkCleanupStatus = async (showAlert = true) => {
           })
         );
       }
-      await analyzeStorage();
+      await analyzeStorage({ force: true });
     } else if (status === 'in_progress') {
       cleanupLoading.value = true;
       if (!cleanupStatusCheckInterval) {
-        startCleanupPolling();
+        startCleanupPolling(() => checkCleanupStatus(false));
       }
     } else if (status === 'interrupted') {
       stopCleanupPolling();
       cleanupLoading.value = false;
       if (showAlert) {
         useAlert(t('STORAGE_MGMT.CLEANUP_INTERRUPTED'));
+      }
+    } else if (status === 'cancelled') {
+      stopCleanupPolling();
+      cleanupLoading.value = false;
+      cancellingCleanup.value = false;
+      if (showAlert) {
+        useAlert(t('STORAGE_MGMT.CLEANUP_CANCELLED'));
       }
     } else if (status === 'error') {
       stopCleanupPolling();
@@ -293,47 +300,43 @@ const checkCleanupStatus = async (showAlert = true) => {
       cleanupLoading.value = false;
       stopCleanupPolling();
     }
-  } catch (error) {
-    console.error('Error checking cleanup status:', error);
+  } catch {
     cleanupLoading.value = false;
   }
 };
 
-// Start cleanup polling
-const startCleanupPolling = () => {
-  if (cleanupStatusCheckInterval) return;
-  
-  cleanupStatusCheckInterval = setInterval(() => {
-    checkCleanupStatus(false);
-  }, 3000);
-};
-
-// Stop cleanup polling
-const stopCleanupPolling = () => {
-  if (cleanupStatusCheckInterval) {
-    clearInterval(cleanupStatusCheckInterval);
-    cleanupStatusCheckInterval = null;
-  }
-};
-
-const deduplicateFiles = async () => {
-  const confirmed = await deduplicateConfirmDialog.value.showConfirmation();
+const cleanupOrphans = async () => {
+  const confirmed = await cleanupConfirmDialog.value.showConfirmation();
 
   if (!confirmed) {
     return;
   }
 
   try {
-    deduplicateLoading.value = true;
-    deduplicationStatus.value = 'in_progress';
-    await StorageAPI.deduplicate();
-    useAlert(t('STORAGE_MGMT.DEDUPLICATE_QUEUED'));
-    startDeduplicationPolling();
+    cleanupLoading.value = true;
+    cleanupStatus.value = 'in_progress';
+    await StorageAPI.cleanupOrphans();
+    useAlert(t('STORAGE_MGMT.CLEANUP_QUEUED'));
+    startCleanupPolling(() => checkCleanupStatus(false));
   } catch (error) {
-    useAlert(t('STORAGE_MGMT.DEDUPLICATE_ERROR'));
-    deduplicateLoading.value = false;
-    deduplicationStatus.value = 'failed';
+    useAlert(t('STORAGE_MGMT.CLEANUP_ERROR'));
+    cleanupLoading.value = false;
+    cleanupStatus.value = 'failed';
   }
+};
+
+// Stop deduplication polling
+const stopDeduplicationPolling = () => {
+  if (deduplicationStatusCheckInterval) {
+    clearInterval(deduplicationStatusCheckInterval);
+    deduplicationStatusCheckInterval = null;
+  }
+};
+
+// Start deduplication polling – receives callback
+const startDeduplicationPolling = fn => {
+  if (deduplicationStatusCheckInterval) return;
+  deduplicationStatusCheckInterval = setInterval(fn, 3000);
 };
 
 // Check deduplication status
@@ -355,20 +358,27 @@ const checkDeduplicationStatus = async (showAlert = true) => {
           })
         );
       }
-      await analyzeStorage();
+      await analyzeStorage({ force: true });
       if (showDuplicates.value) {
         await loadDuplicates();
       }
     } else if (status === 'in_progress') {
       deduplicateLoading.value = true;
       if (!deduplicationStatusCheckInterval) {
-        startDeduplicationPolling();
+        startDeduplicationPolling(() => checkDeduplicationStatus(false));
       }
     } else if (status === 'interrupted') {
       stopDeduplicationPolling();
       deduplicateLoading.value = false;
       if (showAlert) {
         useAlert(t('STORAGE_MGMT.DEDUPLICATE_INTERRUPTED'));
+      }
+    } else if (status === 'cancelled') {
+      stopDeduplicationPolling();
+      deduplicateLoading.value = false;
+      cancellingDedup.value = false;
+      if (showAlert) {
+        useAlert(t('STORAGE_MGMT.DEDUPLICATE_CANCELLED'));
       }
     } else if (status === 'error') {
       stopDeduplicationPolling();
@@ -380,26 +390,50 @@ const checkDeduplicationStatus = async (showAlert = true) => {
       deduplicateLoading.value = false;
       stopDeduplicationPolling();
     }
-  } catch (error) {
-    console.error('Error checking deduplication status:', error);
+  } catch {
     deduplicateLoading.value = false;
   }
 };
 
-// Start deduplication polling
-const startDeduplicationPolling = () => {
-  if (deduplicationStatusCheckInterval) return;
-  
-  deduplicationStatusCheckInterval = setInterval(() => {
-    checkDeduplicationStatus(false);
-  }, 3000);
+const deduplicateFiles = async () => {
+  const confirmed = await deduplicateConfirmDialog.value.showConfirmation();
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    deduplicateLoading.value = true;
+    deduplicationStatus.value = 'in_progress';
+    await StorageAPI.deduplicate();
+    useAlert(t('STORAGE_MGMT.DEDUPLICATE_QUEUED'));
+    startDeduplicationPolling(() => checkDeduplicationStatus(false));
+  } catch (error) {
+    useAlert(t('STORAGE_MGMT.DEDUPLICATE_ERROR'));
+    deduplicateLoading.value = false;
+    deduplicationStatus.value = 'failed';
+  }
 };
 
-// Stop deduplication polling
-const stopDeduplicationPolling = () => {
-  if (deduplicationStatusCheckInterval) {
-    clearInterval(deduplicationStatusCheckInterval);
-    deduplicationStatusCheckInterval = null;
+const cancelDeduplication = async () => {
+  try {
+    cancellingDedup.value = true;
+    await StorageAPI.cancelDeduplication();
+    useAlert(t('STORAGE_MGMT.CANCEL_DEDUP_REQUESTED'));
+  } catch (error) {
+    cancellingDedup.value = false;
+    useAlert(t('STORAGE_MGMT.CANCEL_DEDUP_ERROR'));
+  }
+};
+
+const cancelCleanup = async () => {
+  try {
+    cancellingCleanup.value = true;
+    await StorageAPI.cancelCleanup();
+    useAlert(t('STORAGE_MGMT.CANCEL_CLEANUP_REQUESTED'));
+  } catch (error) {
+    cancellingCleanup.value = false;
+    useAlert(t('STORAGE_MGMT.CANCEL_CLEANUP_ERROR'));
   }
 };
 
@@ -427,7 +461,7 @@ onUnmounted(() => {
             :disabled="analyzing"
             size="small"
             blue
-            @click="analyzeStorage"
+            @click="analyzeStorage({ force: true })"
           >
             <span v-if="!analyzing">{{ $t('STORAGE_MGMT.REFRESH') }}</span>
             <Spinner v-else size="small" />
@@ -441,27 +475,49 @@ onUnmounted(() => {
       <div
         v-if="hasData && lastAnalyzedAt"
         class="mb-4 rounded-md border bg-n-solid-1 p-3"
-        :class="analysisIsStale ? 'border-n-amber-6 bg-n-amber-2' : 'border-n-weak'"
+        :class="
+          analysisIsStale ? 'border-n-amber-6 bg-n-amber-2' : 'border-n-weak'
+        "
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span
               class="flex items-center justify-center w-6 h-6 rounded-full"
-              :class="analysisIsStale ? 'bg-n-amber-3 text-n-amber-11' : 'bg-n-green-3 text-n-green-11'"
+              :class="
+                analysisIsStale
+                  ? 'bg-n-amber-3 text-n-amber-11'
+                  : 'bg-n-green-3 text-n-green-11'
+              "
             >
-              <span class="w-4 h-4" :class="analysisIsStale ? 'i-lucide-clock' : 'i-lucide-check-circle'" />
+              <span
+                class="w-4 h-4"
+                :class="
+                  analysisIsStale ? 'i-lucide-clock' : 'i-lucide-check-circle'
+                "
+              />
             </span>
             <div>
-              <span class="text-sm font-medium" :class="analysisIsStale ? 'text-n-amber-11' : 'text-n-slate-12'">
-                {{ $t('STORAGE_MGMT.LAST_ANALYZED') }}: {{ lastAnalyzedFormatted }}
+              <span
+                class="text-sm font-medium"
+                :class="analysisIsStale ? 'text-n-amber-11' : 'text-n-slate-12'"
+              >
+                {{ $t('STORAGE_MGMT.LAST_ANALYZED') }}:
+                {{ lastAnalyzedFormatted }}
               </span>
               <span v-if="analysisIsStale" class="ml-2 text-xs text-n-amber-10">
                 {{ $t('STORAGE_MGMT.DATA_MAY_BE_OUTDATED') }}
               </span>
             </div>
           </div>
-          <span v-if="storageData.analysis_duration_seconds" class="text-xs text-n-slate-11">
-            {{ $t('STORAGE_MGMT.ANALYSIS_TOOK', { seconds: storageData.analysis_duration_seconds.toFixed(1) }) }}
+          <span
+            v-if="storageData.analysis_duration_seconds"
+            class="text-xs text-n-slate-11"
+          >
+            {{
+              $t('STORAGE_MGMT.ANALYSIS_TOOK', {
+                seconds: storageData.analysis_duration_seconds.toFixed(1),
+              })
+            }}
           </span>
         </div>
       </div>
@@ -496,7 +552,12 @@ onUnmounted(() => {
           <div class="text-sm">
             {{ $t('STORAGE_MGMT.NO_DATA_DESC') }}
           </div>
-          <NextButton class="mt-4" size="small" blue @click="analyzeStorage">
+          <NextButton
+            class="mt-4"
+            size="small"
+            blue
+            @click="analyzeStorage({ force: true })"
+          >
             {{ $t('STORAGE_MGMT.START_ANALYSIS') }}
           </NextButton>
         </div>
@@ -720,21 +781,31 @@ onUnmounted(() => {
                     {{ $t('STORAGE_MGMT.CLEANUP_ORPHANS_DESC') }}
                   </p>
                 </div>
-                <NextButton
-                  :disabled="
-                    cleanupLoading ||
-                    !storageData.orphan_blobs.count ||
-                    storageData.orphan_blobs.count === 0
-                  "
-                  size="small"
-                  amber
-                  @click="cleanupOrphans"
-                >
-                  <span v-if="!cleanupLoading">
+                <div class="flex items-center gap-2">
+                  <NextButton
+                    v-if="!cleanupLoading"
+                    :disabled="
+                      !storageData.orphan_blobs.count ||
+                      storageData.orphan_blobs.count === 0
+                    "
+                    size="small"
+                    amber
+                    @click="cleanupOrphans"
+                  >
                     {{ $t('STORAGE_MGMT.CLEANUP_ACTION') }}
-                  </span>
-                  <Spinner v-else size="small" />
-                </NextButton>
+                  </NextButton>
+                  <template v-else>
+                    <Spinner size="small" />
+                    <NextButton
+                      :disabled="cancellingCleanup"
+                      size="small"
+                      ruby
+                      @click="cancelCleanup"
+                    >
+                      {{ $t('STORAGE_MGMT.STOP_ACTION') }}
+                    </NextButton>
+                  </template>
+                </div>
               </div>
 
               <!-- View Duplicates -->
@@ -803,21 +874,31 @@ onUnmounted(() => {
                     {{ $t('STORAGE_MGMT.DEDUPLICATE_DESC') }}
                   </p>
                 </div>
-                <NextButton
-                  :disabled="
-                    deduplicateLoading ||
-                    !storageData.duplicates.files ||
-                    storageData.duplicates.files === 0
-                  "
-                  size="small"
-                  ruby
-                  @click="deduplicateFiles"
-                >
-                  <span v-if="!deduplicateLoading">
+                <div class="flex items-center gap-2">
+                  <NextButton
+                    v-if="!deduplicateLoading"
+                    :disabled="
+                      !storageData.duplicates.files ||
+                      storageData.duplicates.files === 0
+                    "
+                    size="small"
+                    ruby
+                    @click="deduplicateFiles"
+                  >
                     {{ $t('STORAGE_MGMT.DEDUPLICATE_ACTION') }}
-                  </span>
-                  <Spinner v-else size="small" />
-                </NextButton>
+                  </NextButton>
+                  <template v-else>
+                    <Spinner size="small" />
+                    <NextButton
+                      :disabled="cancellingDedup"
+                      size="small"
+                      ruby
+                      @click="cancelDeduplication"
+                    >
+                      {{ $t('STORAGE_MGMT.STOP_ACTION') }}
+                    </NextButton>
+                  </template>
+                </div>
               </div>
             </div>
           </div>

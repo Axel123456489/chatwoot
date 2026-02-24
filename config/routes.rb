@@ -113,6 +113,8 @@ Rails.application.routes.draw do
           get 'storage/cleanup_status', to: 'storage#cleanup_status'
           post 'storage/deduplicate', to: 'storage#deduplicate'
           get 'storage/deduplication_status', to: 'storage#deduplication_status'
+          delete 'storage/cancel_deduplication', to: 'storage#cancel_deduplication'
+          delete 'storage/cancel_cleanup', to: 'storage#cancel_cleanup'
           
           resources :templates, only: [:index, :show] do
             collection do
