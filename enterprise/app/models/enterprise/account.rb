@@ -41,11 +41,13 @@ module Enterprise::Account
   private
 
   def sync_assignment_features
+    # On cloud, gate advanced_assignment behind plan tier.
+    # On self-hosted, respect whatever the super admin sets.
+    return unless ChatwootApp.chatwoot_cloud?
+
     if feature_enabled?('assignment_v2')
-      # Enable advanced_assignment for Business/Enterprise plans
       send('feature_advanced_assignment=', true) if business_or_enterprise_plan?
     else
-      # Disable advanced_assignment when assignment_v2 is disabled
       send('feature_advanced_assignment=', false)
     end
   end
