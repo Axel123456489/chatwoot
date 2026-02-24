@@ -449,6 +449,7 @@ function fetchFilteredConversations(payload) {
     .dispatch('fetchFilteredConversations', {
       queryData: filterQueryGenerator(payload),
       page,
+      conversationType: props.conversationType || undefined,
     })
     .then(emitConversationLoaded);
 
@@ -456,12 +457,19 @@ function fetchFilteredConversations(payload) {
 }
 
 function fetchSavedFilteredConversations(payload) {
-  payload = useSnakeCase(payload);
+  // Extract conversation_type and keep the rest ({ payload: [...] }) as the POST body
+  const conversationType = payload?.conversation_type || undefined;
+  // eslint-disable-next-line no-unused-vars
+  const { conversation_type: _ct, ...queryPayload } = Array.isArray(payload)
+    ? { payload }
+    : (payload || {});
+  const normalizedPayload = useSnakeCase(queryPayload);
   let page = currentFiltersPage.value + 1;
   store
     .dispatch('fetchFilteredConversations', {
-      queryData: payload,
+      queryData: normalizedPayload,
       page,
+      conversationType,
     })
     .then(emitConversationLoaded);
 }
@@ -469,7 +477,11 @@ function fetchSavedFilteredConversations(payload) {
 function onApplyFilter(payload) {
   payload = useSnakeCase(payload);
   resetBulkActions();
-  foldersQuery.value = filterQueryGenerator(payload);
+  const filterPayload = filterQueryGenerator(payload);
+  // Merge conversation_type into query so saved views remember the context
+  foldersQuery.value = props.conversationType
+    ? { ...filterPayload, conversation_type: props.conversationType }
+    : filterPayload;
   store.dispatch('conversationPage/reset');
   store.dispatch('emptyAllConversations');
   fetchFilteredConversations(payload);
@@ -482,10 +494,14 @@ function closeAdvanceFiltersModal() {
 
 function onUpdateSavedFilter(payload, folderName) {
   const transformedPayload = useSnakeCase(payload);
+  const filterPayload = filterQueryGenerator(transformedPayload);
+  const query = props.conversationType
+    ? { ...filterPayload, conversation_type: props.conversationType }
+    : filterPayload;
   const payloadData = {
     ...unref(activeFolder),
     name: unref(folderName),
-    query: filterQueryGenerator(transformedPayload),
+    query,
   };
   store.dispatch('customViews/update', payloadData);
   closeAdvanceFiltersModal();
