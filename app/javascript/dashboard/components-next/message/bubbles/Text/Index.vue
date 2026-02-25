@@ -6,11 +6,11 @@ import AttachmentChips from 'next/message/chips/AttachmentChips.vue';
 import TranslationToggle from 'dashboard/components-next/message/TranslationToggle.vue';
 import DashboardIcon from 'shared/components/FluentIcon/DashboardIcon.vue';
 import ButtonReplyBadge from 'dashboard/components-next/message/badges/ButtonReplyBadge.vue';
-import { MESSAGE_TYPES } from '../../constants';
+import { MESSAGE_TYPES, MESSAGE_VARIANTS } from '../../constants';
 import { useMessageContext } from '../../provider.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
-const { content, attachments, contentAttributes, messageType } =
+const { content, attachments, contentAttributes, messageType, variant } =
   useMessageContext();
 
 const { hasTranslations, translationContent } =
@@ -61,6 +61,13 @@ const handleButtonClick = button => {
     window.location.href = `tel:${button.phone_number}`;
   }
 };
+
+const buttonClass = computed(() => {
+  if (variant.value === MESSAGE_VARIANTS.ERROR) {
+    return 'px-3 py-2 flex items-center justify-center gap-2 cursor-pointer bg-n-ruby-4 border border-n-ruby-6 text-n-ruby-12 rounded-xl hover:bg-n-ruby-5 transition-colors font-medium text-sm';
+  }
+  return 'px-3 py-2 flex items-center justify-center gap-2 cursor-pointer bg-n-solid-blue text-n-slate-12 rounded-xl hover:opacity-90 transition-opacity font-medium text-sm';
+});
 </script>
 
 <template>
@@ -98,7 +105,7 @@ const handleButtonClick = button => {
       <div
         v-for="(button, index) in whatsappButtons"
         :key="index"
-        class="px-3 py-2 flex items-center justify-center gap-2 cursor-pointer bg-n-solid-blue text-n-slate-12 rounded-xl hover:opacity-90 transition-opacity font-medium text-sm"
+        :class="buttonClass"
         @click="handleButtonClick(button)"
       >
         <DashboardIcon
@@ -122,7 +129,7 @@ const handleButtonClick = button => {
       <div
         v-for="(button, index) in whatsappButtons"
         :key="index"
-        class="px-3 py-2 flex items-center justify-center gap-2 cursor-pointer bg-n-solid-blue text-n-slate-12 rounded-xl hover:opacity-90 transition-opacity font-medium text-sm"
+        :class="buttonClass"
       >
         <svg
           width="15"
