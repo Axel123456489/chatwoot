@@ -16,7 +16,7 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
 
     @automation_rule = Current.account.automation_rules.new(automation_rules_permit)
     @automation_rule.actions = actions
-    @automation_rule.conditions = params[:conditions]
+    @automation_rule.conditions = sanitized_conditions
     # Backend debug logs for incoming automation payloads
     Rails.logger.info("[Automation][API] create params actions=#{params[:actions].inspect} conditions=#{params[:conditions].inspect}")
 
@@ -43,7 +43,7 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
 
       @automation_rule.assign_attributes(automation_rules_permit)
       @automation_rule.actions = actions if params[:actions]
-      @automation_rule.conditions = params[:conditions] if params[:conditions]
+      @automation_rule.conditions = sanitized_conditions if params[:conditions]
       @automation_rule.save!
       Rails.logger.info("[Automation][API] updated rule id=#{@automation_rule.id} actions=#{@automation_rule.actions.inspect} conditions=#{@automation_rule.conditions.inspect}")
       blobs.each { |blob| @automation_rule.files.attach(blob) }
@@ -72,9 +72,37 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
   def automation_rules_permit
     params.permit(
       :name, :description, :event_name, :active,
-      conditions: [:attribute_key, :filter_operator, :query_operator, :custom_attribute_type, { values: [] }],
       actions: [:action_name, { action_params: [] }]
     )
+  end
+
+  # Converts raw conditions from ActionController::Parameters to plain hashes,
+  # and permits both array values and { from:, to: } object values (attribute_changed).
+  def sanitized_conditions
+    return [] unless params[:conditions]
+
+    params[:conditions].map do |condition|
+      c = condition.permit(:attribute_key, :filter_operator, :query_operator, :custom_attribute_type).to_h
+      c['values'] = sanitize_condition_values(condition[:values])
+      c
+    end
+  end
+
+  def sanitize_condition_values(values)
+    if values.is_a?(ActionController::Parameters) && (values.key?(:from) || values.key?('from'))
+      { 'from' => sanitize_value_array(values[:from] || values['from']),
+        'to' => sanitize_value_array(values[:to] || values['to']) }
+    elsif values.is_a?(Array)
+      values.map { |v| v&.to_s }
+    else
+      []
+    end
+  end
+
+  def sanitize_value_array(arr)
+    return [] unless arr.is_a?(Array)
+
+    arr.map { |v| v&.to_s }
   end
 
   def fetch_automation_rule

@@ -6,6 +6,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import FilterSelect from './inputs/FilterSelect.vue';
 import MultiSelect from './inputs/MultiSelect.vue';
 import SingleSelect from './inputs/SingleSelect.vue';
+import AttributeChangedInput from './inputs/AttributeChangedInput.vue';
 
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { validateSingleFilter } from 'dashboard/helper/validations.js';
@@ -119,7 +120,9 @@ const resetModelOnAttributeKeyChange = newAttributeKey => {
   const filter = getFilterFromFilterTypes(newAttributeKey);
   const newOperator = getOperator(filter, filterOperator.value);
   const newInputType = getInputType(newOperator, filter);
-  if (newInputType === 'multiSelect') {
+  if (newInputType === 'attributeChanged') {
+    values.value = { from: [], to: [] };
+  } else if (newInputType === 'multiSelect') {
     values.value = [];
   } else if (['searchSelect', 'booleanSelect'].includes(newInputType)) {
     values.value = {};
@@ -131,6 +134,14 @@ const resetModelOnAttributeKeyChange = newAttributeKey => {
 
 watch([attributeKey, values, filterOperator], () => {
   showErrors.value = false;
+});
+
+// When the filter operator changes to attribute_changed, convert plain array
+// values to the { from, to } object shape expected by AttributeChangedInput.
+watch(filterOperator, newOp => {
+  if (newOp === 'attribute_changed' && !values.value?.from) {
+    values.value = { from: [], to: [] };
+  }
 });
 
 const validate = () => {
@@ -173,8 +184,13 @@ defineExpose({ validate, resetValidation });
         :options="currentFilter?.filterOperators"
       />
       <template v-if="currentOperator?.hasInput">
+        <AttributeChangedInput
+          v-if="inputType === 'attributeChanged'"
+          v-model="values"
+          :options="currentFilter.options"
+        />
         <MultiSelect
-          v-if="inputType === 'multiSelect'"
+          v-else-if="inputType === 'multiSelect'"
           v-model="values"
           :options="currentFilter.options"
           dropdown-max-height="max-h-72"

@@ -54,9 +54,13 @@ class AutomationRuleListener < BaseListener
     Rails.logger.info("[Automation][Listener] #{event_name} rules=#{rules.pluck(:id)} conversation_id=#{conversation.id}")
 
     rules.each do |rule|
-      conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, { changed_attributes: changed_attributes }).perform
+      conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation,
+                                                                        { changed_attributes: changed_attributes }).perform
       Rails.logger.info("[Automation][Listener] rule_id=#{rule.id} conditions_match=#{conditions_match}")
-      AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
+      if conditions_match.present?
+        service = AutomationRules::ActionService.new(rule, account, conversation, { changed_attributes: changed_attributes })
+        service.perform
+      end
     end
   end
 

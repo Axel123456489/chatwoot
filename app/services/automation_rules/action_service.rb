@@ -42,19 +42,26 @@ class AutomationRules::ActionService < ActionService
   def send_webhook_event(webhook_url)
     payload = @conversation.webhook_data.merge(event: "automation_event.#{@rule.event_name}")
 
-    # Enrich automation webhook payload with label diffs if available
+    # Build unified labels field with current state + diff
+    labels_added = []
+    labels_removed = []
     if @changed_attributes.present?
       raw = @changed_attributes.stringify_keys
       if raw.key?('label_list')
         previous, current = raw['label_list']
         prev_labels = Array(previous).map(&:to_s)
         curr_labels = Array(current).map(&:to_s)
-        labels_added = (curr_labels - prev_labels)
-        labels_removed = (prev_labels - curr_labels)
-        payload = payload.merge(labels_added: labels_added) if labels_added.any?
-        payload = payload.merge(labels_removed: labels_removed) if labels_removed.any?
+        labels_added = curr_labels - prev_labels
+        labels_removed = prev_labels - curr_labels
       end
     end
+    payload = payload.merge(
+      labels: {
+        current: @conversation.label_list,
+        added: labels_added,
+        removed: labels_removed
+      }
+    )
 
     WebhookJob.perform_later(webhook_url[0], payload)
   end

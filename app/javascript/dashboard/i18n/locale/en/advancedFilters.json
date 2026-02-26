@@ -71,6 +71,10 @@
       "FILTER_OPERATOR_REQUIRED": "Filter operator is required",
       "VALUE_MUST_BE_BETWEEN_1_AND_998": "Value must be between 1 and 998"
     },
+    "ATTRIBUTE_CHANGED": {
+      "FROM": "from",
+      "TO": "to"
+    },
     "GROUPS": {
       "STANDARD_FILTERS": "Standard filters",
       "ADDITIONAL_FILTERS": "Additional filters",

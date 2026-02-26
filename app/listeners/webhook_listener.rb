@@ -65,13 +65,16 @@ class WebhookListener < BaseListener
     changes_map = raw_changes.transform_values { |v| { previous_value: v[0], current_value: v[1] } }
     changed_keys = changes_map.keys
 
-    extras = {}
+    # Always include label diff fields (empty arrays when no label change)
+    labels_added = []
+    labels_removed = []
     if changes_map.key?('label_list')
       prev = Array(changes_map['label_list'][:previous_value])
       curr = Array(changes_map['label_list'][:current_value])
-      extras[:labels_added] = (curr - prev)
-      extras[:labels_removed] = (prev - curr)
+      labels_added = curr - prev
+      labels_removed = prev - curr
     end
+    extras = { labels_added: labels_added, labels_removed: labels_removed }
 
     # Actor que ejecutó el cambio, si está disponible
     actor = event.data[:performed_by]
@@ -105,7 +108,12 @@ class WebhookListener < BaseListener
 
     base_payload = conversation.webhook_data.merge(
       event: __method__.to_s,
-      changed_attributes: changed_attributes
+      changed_attributes: changed_attributes,
+      labels: {
+        current: conversation.label_list,
+        added: extras[:labels_added],
+        removed: extras[:labels_removed]
+      }
     )
 
     # Only enrich payload when explicitly enabled to preserve legacy contract in tests
@@ -120,7 +128,7 @@ class WebhookListener < BaseListener
         notifiable_assignee_change: event.data[:notifiable_assignee_change],
         changed_at: (event.data[:changed_at] || Time.current.iso8601),
         diff_summary: diff_summary
-      ).merge!(extras)
+      )
     end
 
     payload = base_payload
