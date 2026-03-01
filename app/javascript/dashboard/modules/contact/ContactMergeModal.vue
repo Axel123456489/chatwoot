@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert, useTrack } from 'dashboard/composables';
@@ -39,14 +39,24 @@ const open = () => {
   dialogRef.value?.open();
 };
 
+onMounted(() => {
+  open();
+});
+
 const close = () => {
   dialogRef.value?.close();
 };
 
 defineExpose({ open, close });
 
+// Called by the cancel button inside MergeContact — needs to close the dialog first
 const onClose = () => {
   close();
+  emit('close');
+};
+
+// Called by Dialog's own @close event (click outside / ESC) — dialog already closed, just notify parent
+const onDialogClose = () => {
   emit('close');
 };
 
@@ -93,6 +103,7 @@ const onMergeContacts = async parentContactId => {
     :description="$t('MERGE_CONTACTS.DESCRIPTION')"
     :show-cancel-button="false"
     :show-confirm-button="false"
+    @close="onDialogClose"
   >
     <MergeContact
       :key="primaryContact.id"

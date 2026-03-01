@@ -364,7 +364,6 @@ export default {
       />
       <MergeMessagesModal
         v-if="showMergeMessagesModal"
-        :show="showMergeMessagesModal"
         :current-chat="currentChat"
         @cancel="closeMergeMessagesModal"
       />
