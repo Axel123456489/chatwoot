@@ -90,6 +90,26 @@
       "THEY_ANSWERED": "They answered",
       "YOU_ANSWERED": "You answered"
     },
+    "WHATSAPP_CALL": {
+      "INCOMING_CALL": "Incoming call",
+      "OUTGOING_CALL": "Outgoing call",
+      "CALL_INITIATED": "Call initiated...",
+      "CALL_CONNECTED": "Connected",
+      "CALL_CONNECTED_WITH_DURATION": "Connected · {duration}",
+      "CALL_COMPLETED": "Call ended · {duration}",
+      "CALL_REJECTED": "Call rejected",
+      "CALL_MISSED": "Missed call",
+      "CALL_CANCELLED": "Call cancelled",
+      "CALL_BUSY": "User busy",
+      "CALL_NO_CONNECTION": "Connection failed",
+      "CALL_FAILED": "Call failed",
+      "ERROR_UNAUTHORIZED": "Error: Not authorized",
+      "ERROR_NO_BALANCE": "Error: Insufficient balance",
+      "ERROR_NOT_ENABLED": "Error: Calling not enabled",
+      "ERROR_RATE_LIMIT": "Error: Rate limit exceeded",
+      "ERROR_INVALID": "Error: Invalid parameters",
+      "ERROR_RECIPIENT_NOT_APPROVED": "Error: Recipient has not approved receiving calls"
+    },
     "HEADER": {
       "RESOLVE_ACTION": "Resolve",
       "REOPEN_ACTION": "Reopen",

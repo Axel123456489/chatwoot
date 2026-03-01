@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import BaseBubble from 'dashboard/components-next/message/bubbles/Base.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Audio from 'dashboard/components-next/message/chips/Audio.vue';
@@ -10,6 +11,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const { t } = useI18n();
 
 // Normalize call metadata and status accepting both snake_case and camelCase
 const callData = computed(
@@ -32,9 +35,15 @@ const callDirection = computed(() => {
 
 const rawCallStatus = computed(() => {
   const s = props.message.call_status ?? props.message.callStatus ?? '';
-  return typeof s === 'string'
-    ? s.toString().toLowerCase()
-    : String(s || '').toLowerCase();
+  const normalized =
+    typeof s === 'string' ? s.toString().toLowerCase() : String(s || '').toLowerCase();
+  // API returns unprefixed values ('initiated', 'completed', etc.)
+  // Component expects prefixed form ('call_initiated', 'call_completed', etc.)
+  // Normalize to always have the 'call_' prefix.
+  if (normalized && !normalized.startsWith('call_')) {
+    return `call_${normalized}`;
+  }
+  return normalized;
 });
 
 const isInitiated = computed(() => rawCallStatus.value === 'call_initiated');
@@ -53,29 +62,21 @@ const isMissed = computed(() =>
 );
 
 const iconConfig = computed(() => {
-  let icon = 'phone-call';
-  let bgColor = 'bg-n-slate-9';
-
   if (isSuccessful.value) {
-    // Successful calls - green
-    icon = 'phone';
-    bgColor = 'bg-n-teal-9';
-  } else if (isMissed.value) {
-    // Missed/unanswered calls - amber
-    icon = 'phone-x';
-    bgColor = 'bg-n-amber-9';
-  } else if (isRejected.value || isMetaError.value) {
-    // Rejected or error calls - red
-    icon = 'phone-x';
-    bgColor = 'bg-n-ruby-9';
-  } else if (isInitiated.value) {
-    // Initiated/in-progress calls - blue
-    icon =
-      callDirection.value === 'outbound' ? 'phone-outgoing' : 'phone-incoming';
-    bgColor = 'bg-n-blue-9';
+    return { icon: 'i-ph-phone', bgColor: 'bg-n-teal-9' };
   }
-
-  return { icon, bgColor };
+  if (isMissed.value) {
+    return { icon: 'i-ph-phone-x', bgColor: 'bg-n-amber-9' };
+  }
+  if (isRejected.value || isMetaError.value) {
+    return { icon: 'i-ph-phone-x', bgColor: 'bg-n-ruby-9' };
+  }
+  if (isInitiated.value) {
+    return callDirection.value === 'outbound'
+      ? { icon: 'i-ph-phone-outgoing', bgColor: 'bg-n-blue-9' }
+      : { icon: 'i-ph-phone-incoming', bgColor: 'bg-n-blue-9' };
+  }
+  return { icon: 'i-ph-phone-call', bgColor: 'bg-n-slate-9' };
 });
 
 const messageBgColor = computed(() => {
@@ -113,40 +114,44 @@ const statusText = computed(() => {
 
   switch (status) {
     case 'call_initiated':
-      return 'Call initiated...';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_INITIATED');
     case 'call_connected':
-      return `Connected ${formattedDuration ? `• ${formattedDuration}` : ''}`;
+      return formattedDuration
+        ? t('CONVERSATION.WHATSAPP_CALL.CALL_CONNECTED_WITH_DURATION', { duration: formattedDuration })
+        : t('CONVERSATION.WHATSAPP_CALL.CALL_CONNECTED');
     case 'call_completed':
-      return `Call ended • ${formattedDuration}`;
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_COMPLETED', { duration: formattedDuration });
     case 'call_rejected':
-      return 'Call rejected';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_REJECTED');
     case 'call_missed':
-      return 'Missed call';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_MISSED');
     case 'call_cancelled':
-      return 'Call cancelled';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_CANCELLED');
     case 'call_busy':
-      return 'User busy';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_BUSY');
     case 'call_no_connection':
-      return 'Connection failed';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_NO_CONNECTION');
     case 'call_error_unauthorized':
-      return 'Error: Not authorized';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_UNAUTHORIZED');
     case 'call_error_no_balance':
-      return 'Error: Insufficient balance';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_NO_BALANCE');
     case 'call_error_not_enabled':
-      return 'Error: Calling not enabled';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_NOT_ENABLED');
     case 'call_error_rate_limit':
-      return 'Error: Rate limit exceeded';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_RATE_LIMIT');
     case 'call_error_invalid':
-      return 'Error: Invalid parameters';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_INVALID');
     case 'call_error_recipient_not_approved':
-      return 'Error: Recipient has not approved receiving calls';
+      return t('CONVERSATION.WHATSAPP_CALL.ERROR_RECIPIENT_NOT_APPROVED');
     default:
-      return 'Call failed';
+      return t('CONVERSATION.WHATSAPP_CALL.CALL_FAILED');
   }
 });
 
 const directionText = computed(() =>
-  callDirection.value === 'inbound' ? 'Incoming call' : 'Outgoing call'
+  callDirection.value === 'inbound'
+    ? t('CONVERSATION.WHATSAPP_CALL.INCOMING_CALL')
+    : t('CONVERSATION.WHATSAPP_CALL.OUTGOING_CALL')
 );
 
 const formatDuration = seconds => {
@@ -219,43 +224,32 @@ const recordingAttachment = computed(() => {
 
 <template>
   <BaseBubble
-    class="p-3"
+    class="px-3 py-2.5"
     :class="messageBgColor"
     data-bubble-name="whatsapp-call"
   >
-    <div class="flex gap-3 items-start min-w-64">
+    <div class="flex gap-2.5 items-center min-w-56">
       <!-- Icon -->
       <div
-        class="size-8 rounded-lg grid place-content-center flex-shrink-0"
+        class="size-7 rounded-lg grid place-content-center flex-shrink-0"
         :class="iconConfig.bgColor"
       >
-        <Icon :icon="`i-ph-${iconConfig.icon}`" class="text-white size-4" />
+        <Icon :icon="iconConfig.icon" class="text-white size-3.5" />
       </div>
 
-      <!-- Content -->
-      <div class="flex-1 min-w-0 space-y-1">
-        <div class="text-sm font-medium text-n-slate-12">
-          {{ statusText }}
-        </div>
-        <div class="text-xs text-n-slate-11">
-          {{ directionText }}
-        </div>
-
-        <!-- Recording Player -->
-        <div v-if="hasRecording && recordingAttachment" class="pt-2 space-y-2">
-          <div class="flex items-center gap-2 text-xs text-n-slate-11">
-            <Icon icon="i-ph-microphone" class="size-3.5" />
-            <span>Recording</span>
-            <span class="ml-auto tabular-nums">
-              {{ formatDuration(recordingDuration) }}
-            </span>
-          </div>
-          <Audio
-            :attachment="recordingAttachment"
-            :external-duration="recordingDuration"
-          />
-        </div>
+      <!-- Status + direction on one line -->
+      <div class="flex-1 min-w-0">
+        <span class="text-sm font-medium text-n-slate-12">{{ statusText }}</span>
+        <span class="text-xs text-n-slate-11 ml-1.5">· {{ directionText }}</span>
       </div>
+    </div>
+
+    <!-- Recording Player (full width, below header) -->
+    <div v-if="hasRecording && recordingAttachment" class="mt-2">
+      <Audio
+        :attachment="recordingAttachment"
+        :external-duration="recordingDuration"
+      />
     </div>
   </BaseBubble>
 </template>
