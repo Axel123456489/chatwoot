@@ -49,6 +49,10 @@ class Inboxes extends CacheEnabledApiClient {
       channelData
     );
   }
+
+  getMetaCallingSettings(inboxId) {
+    return axios.get(`${this.url}/${inboxId}/meta_calling_settings`);
+  }
 }
 
 export default new Inboxes();

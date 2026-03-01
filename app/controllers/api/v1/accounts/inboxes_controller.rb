@@ -4,7 +4,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   before_action :fetch_agent_bot, only: [:set_agent_bot]
   before_action :validate_limit, only: [:create]
   # we are already handling the authorization in fetch inbox
-  before_action :check_authorization, except: [:show, :health]
+  before_action :check_authorization, except: [:show, :health, :meta_calling_settings]
   before_action :validate_whatsapp_cloud_channel, only: [:health]
 
   def index
@@ -87,12 +87,30 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     end
 
     if channel.update(channel_params)
-      # Reload inbox to get fresh data
+      sync_meta_calling_settings(channel)
       @inbox.reload
       render 'api/v1/accounts/inboxes/show'
     else
       render json: { error: channel.errors.full_messages }, status: :unprocessable_entity
     end
+  end
+
+  def meta_calling_settings
+    channel = @inbox.channel
+
+    unless channel.is_a?(Channel::Whatsapp)
+      return render json: { error: 'Only WhatsApp channels support this operation' }, status: :unprocessable_entity
+    end
+
+    result = Whatsapp::Calling::ApiAdapter.new(channel).fetch_calling_settings
+    render json: result
+  rescue Whatsapp::Calling::ApiAdapter::ApiError => e
+    Rails.logger.warn "[WHATSAPP_CALLS] fetch_calling_settings: #{e.message}"
+    # Phone number may not have calling feature enabled on Meta — return empty data
+    render json: { calling: {}, meta_error: e.message }
+  rescue StandardError => e
+    Rails.logger.error "[WHATSAPP_CALLS] fetch_calling_settings failed: #{e.message}"
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def health
@@ -233,10 +251,60 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
         :recording_format,
         :turn_username,
         :turn_credential,
+        :call_icon_visibility,
+        :callback_permission_status,
+        :call_hours_enabled,
+        :call_hours_timezone,
         { stun_servers: [],
-          turn_servers: [] }
+          turn_servers: [],
+          call_icons_countries: [],
+          call_hours_schedule: %i[day enabled open_time close_time],
+          call_hours_holidays: %i[date start_time end_time] }
       ]
     )
+  end
+
+  def sync_meta_calling_settings(channel)
+    config = channel.calling_config || {}
+
+    settings = {
+      status: channel.calling_enabled ? 'ENABLED' : 'DISABLED',
+      call_icon_visibility: config['call_icon_visibility'],
+      callback_permission_status: config['callback_permission_status']
+    }.compact
+
+    countries = config['call_icons_countries'].presence
+    settings[:call_icons] = { restrict_to_user_countries: countries } if countries
+    settings[:call_hours] = build_call_hours_for_meta(config)
+
+    Whatsapp::Calling::ApiAdapter.new(channel).update_calling_settings(settings: settings)
+  rescue StandardError => e
+    Rails.logger.warn "[WHATSAPP_CALLS] Meta sync failed (non-fatal): #{e.class} – #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}"
+  end
+
+  def build_call_hours_for_meta(config)
+    call_hours_enabled = ActiveModel::Type::Boolean.new.cast(config['call_hours_enabled'])
+    payload = {
+      status: call_hours_enabled ? 'ENABLED' : 'DISABLED',
+      timezone_id: config['call_hours_timezone'].presence || 'UTC'
+    }
+
+    all_schedule = config['call_hours_schedule'] || []
+    enabled_days = all_schedule.select { |s| s['enabled'] || s[:enabled] }
+    source = enabled_days.any? ? enabled_days : all_schedule
+
+    if source.any?
+      payload[:weekly_operating_hours] = source.map do |s|
+        { day_of_week: s['day'] || s[:day], open_time: s['open_time'] || s[:open_time], close_time: s['close_time'] || s[:close_time] }
+      end
+    end
+
+    if call_hours_enabled
+      holidays = config['call_hours_holidays'] || []
+      payload[:holiday_schedule] = holidays if holidays.any?
+    end
+
+    payload
   end
 
   def whatsapp_channel?
