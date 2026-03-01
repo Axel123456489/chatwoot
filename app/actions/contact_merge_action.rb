@@ -13,6 +13,7 @@ class ContactMergeAction
       merge_messages
       merge_contact_inboxes
       merge_contact_notes
+      merge_whatsapp_calls
       merge_and_remove_mergee_contact
     end
     @base_contact
@@ -44,6 +45,24 @@ class ContactMergeAction
 
   def merge_contact_inboxes
     ContactInbox.where(contact_id: @mergee_contact.id).update(contact_id: @base_contact.id)
+  end
+
+  def merge_whatsapp_calls
+    WhatsappCall.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id)
+    # Delete duplicate permissions (unique on account+contact+phone_number+inbox);
+    # keep base contact's permissions and discard mergee's conflicting ones.
+    base_keys = WhatsappCallPermission
+      .where(contact_id: @base_contact.id)
+      .pluck(:account_id, :phone_number_id, :inbox_id)
+      .to_set
+    WhatsappCallPermission.where(contact_id: @mergee_contact.id).find_each do |perm|
+      key = [perm.account_id, perm.phone_number_id, perm.inbox_id]
+      if base_keys.include?(key)
+        perm.destroy
+      else
+        perm.update_column(:contact_id, @base_contact.id)
+      end
+    end
   end
 
   def merge_and_remove_mergee_contact
