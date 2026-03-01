@@ -130,6 +130,14 @@ class Whatsapp::IncomingMessageBaseService
 
     process_in_reply_to(message)
 
+    # Handle native WhatsApp call permission replies specially — they carry no
+    # displayable text content of their own, so skip the regular message and
+    # instead create a human-readable activity message + update the permission record.
+    if message_type == 'interactive' && message.dig(:interactive, :type) == 'call_permission_reply'
+      process_call_permission_reply(message)
+      return
+    end
+
     message_type == 'contacts' ? create_contact_messages(message) : create_regular_message(message)
   end
 

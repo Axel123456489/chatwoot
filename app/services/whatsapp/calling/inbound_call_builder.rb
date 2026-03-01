@@ -93,6 +93,7 @@ class Whatsapp::Calling::InboundCallBuilder
         existing_conversation.update!(
           additional_attributes: (existing_conversation.additional_attributes || {}).merge(
             'call_id' => @call_id,
+            'call_direction' => 'inbound',
             'call_status' => 'ringing',
             'has_active_call' => true,
             'sdp_offer' => @sdp_offer
@@ -120,6 +121,7 @@ class Whatsapp::Calling::InboundCallBuilder
         existing_conversation.update!(
           additional_attributes: (existing_conversation.additional_attributes || {}).merge(
             'call_id' => @call_id,
+            'call_direction' => 'inbound',
             'call_status' => 'ringing',
             'has_active_call' => true,
             'sdp_offer' => @sdp_offer
@@ -205,6 +207,7 @@ class Whatsapp::Calling::InboundCallBuilder
     # Ensure inbound calls enter the ringing state even if AASM defaulted to initiated
     whatsapp_call.status = 'ringing' if whatsapp_call.status.blank? || whatsapp_call.initiated?
     whatsapp_call.initiated_at ||= Time.current
+    whatsapp_call.recording_enabled = @channel.calling_config&.fetch('recording_enabled', false) || false
     whatsapp_call.save!
     whatsapp_call
   end

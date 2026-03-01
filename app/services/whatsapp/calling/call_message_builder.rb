@@ -110,12 +110,15 @@ class Whatsapp::Calling::CallMessageBuilder
     # For inbound calls, no sender (system message)
     is_outbound = @whatsapp_call.direction == 'outbound'
     sender = is_outbound ? @whatsapp_call.initiated_by_user : nil
+    msg_type = determine_message_type
+
+    Rails.logger.info "[CALL_MSG_BUILDER] Creating message - call_id=#{@whatsapp_call.call_id} call_status=#{call_status} content_type=voice_call message_type=#{msg_type} content=#{content.inspect} call_duration=#{call_duration.inspect} direction=#{@whatsapp_call.direction} sender_id=#{sender&.id} conversation_id=#{@conversation.id} metadata=#{metadata.inspect}"
 
     Message.create!(
       account: @account,
       inbox: @inbox,
       conversation: @conversation,
-      message_type: determine_message_type,
+      message_type: msg_type,
       content_type: :voice_call,
       content: content,
       content_attributes: { call_id: @whatsapp_call.call_id },
@@ -202,10 +205,6 @@ class Whatsapp::Calling::CallMessageBuilder
   end
 
   def determine_message_type
-    direction = @whatsapp_call.call_direction.to_s
-    return 'incoming' if direction == 'inbound'
-    return 'outgoing' if direction == 'outbound'
-
-    'incoming'
+    @whatsapp_call.direction == 'outbound' ? 'outgoing' : 'incoming'
   end
 end

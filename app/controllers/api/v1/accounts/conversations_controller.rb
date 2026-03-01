@@ -377,7 +377,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
     max_retries.times do |attempt|
       call_message = whatsapp_call.conversation.messages
-                                  .where(content_type: :voice_call, call_status: :call_completed)
+                                  .where(content_type: :voice_call, call_status: :completed)
                                   .where.not(call_metadata: nil)
                                   .where("call_metadata->>'call_id' = ?", whatsapp_call.call_id)
                                   .order(created_at: :desc)
@@ -409,7 +409,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
         conversation_id: whatsapp_call.conversation_id,
         message_type: :activity,
         content_type: :voice_call,
-        call_status: :call_completed,
+        call_status: :completed,
         call_duration: whatsapp_call.duration_seconds || 0,
         call_metadata: {
           call_id: whatsapp_call.call_id,

@@ -92,6 +92,60 @@ module Whatsapp::IncomingMessageServiceHelpers
     %w[ephemeral unsupported request_welcome].include?(message_type)
   end
 
+  # Handles a native WhatsApp call_permission_reply interactive message.
+  # Creates an activity message summarising the outcome and updates the
+  # WhatsappCallPermission record for this contact/inbox combination.
+  def process_call_permission_reply(message)
+    perm_data = message.dig(:interactive, :call_permission_reply)
+    return unless perm_data
+
+    response           = perm_data[:response].to_s          # "accept" / "deny"
+    is_permanent       = perm_data[:is_permanent]
+    expiration_ts      = perm_data[:expiration_timestamp]&.to_i
+    contact_name       = @contact.name.presence || @contact.phone_number
+
+    content = if response == 'accept'
+                if is_permanent
+                  "✅ #{contact_name} ha aceptado el permiso de llamada permanentemente."
+                elsif expiration_ts
+                  expires_str = Time.zone.at(expiration_ts).strftime('%d/%m/%Y')
+                  "✅ #{contact_name} ha aceptado el permiso de llamada temporalmente (expira el #{expires_str})."
+                else
+                  "✅ #{contact_name} ha aceptado el permiso de llamada temporalmente."
+                end
+              else
+                "❌ #{contact_name} ha rechazado el permiso de llamada."
+              end
+
+    # Find or create the permission record — the contact may have replied without
+    # a prior request (e.g. directly from the WhatsApp UI).
+    permission = Whatsapp::CallPermission.find_or_initialize_by(
+      account: inbox.account,
+      inbox: inbox,
+      contact: @contact,
+      phone_number_id: inbox.channel.phone_number_id
+    )
+
+    if response == 'accept'
+      permission.assign_attributes(
+        permission_status: 'granted',
+        granted_at: Time.current,
+        expires_at: expiration_ts ? Time.zone.at(expiration_ts) : nil,
+        remaining_calls: 10
+      )
+    else
+      permission.assign_attributes(permission_status: 'denied', remaining_calls: 0)
+    end
+    permission.save!
+
+    @conversation.messages.create!(
+      account_id: inbox.account_id,
+      inbox_id: inbox.id,
+      message_type: :activity,
+      content: content
+    )
+  end
+
   def processed_waid(waid)
     Whatsapp::PhoneNumberNormalizationService.new(inbox).normalize_and_find_contact_by_provider(waid, :cloud)
   end

@@ -93,18 +93,13 @@ class Whatsapp::Calling::CallTerminateService
              ended_at: whatsapp_call.ended_at)
 
     # Check if termination message already exists (webhook received multiple times)
+    # NOTE: enum has _prefix: true, so real keys are :completed, :rejected, etc. (without call_ prefix)
     existing_termination = conversation.messages
-                                       .where(message_type: :activity, content_type: :voice_call)
+                                       .where(content_type: :voice_call)
                                        .where("call_metadata->>'call_id' = ?", whatsapp_call.call_id)
-                                       .where(call_status: [
-                                                Message.call_statuses[:call_completed],
-                                                Message.call_statuses[:call_rejected],
-                                                Message.call_statuses[:call_missed],
-                                                Message.call_statuses[:call_cancelled],
-                                                Message.call_statuses[:call_busy],
-                                                Message.call_statuses[:call_no_connection],
-                                                Message.call_statuses[:call_failed]
-                                              ])
+                                       .where(call_status: %w[completed rejected missed cancelled busy no_connection failed
+                                                              unauthorized no_balance not_enabled rate_limit invalid
+                                                              other_meta_error])
                                        .first
 
     if existing_termination
@@ -123,12 +118,12 @@ class Whatsapp::Calling::CallTerminateService
     log_info('Determining call outcome',
              call_status: call_status,
              duration: call_duration,
-             connected_at_present: whatsapp_call.connected_at.present?,
-             will_create_new: call_status == 'completed' && whatsapp_call.connected_at.present? && call_duration.positive?)
+             will_create_new: call_status == 'completed' && call_duration.positive?)
 
     # Determine if call was successful (connected AND had duration) or failed
-    # WhatsApp can send COMPLETED with duration=null/0 for missed calls
-    if call_status == 'completed' && whatsapp_call.connected_at.present? && call_duration.positive?
+    # WhatsApp only sends COMPLETED with positive duration when the call was truly answered.
+    # Don't rely on connected_at — for outbound P2P calls it may not be set due to webhook timing.
+    if call_status == 'completed' && call_duration.positive?
       # Call was answered - create NEW completed message with recording
       log_info('Call was answered, creating completed message with recording')
       message = builder.create_completed_message
@@ -162,10 +157,11 @@ class Whatsapp::Calling::CallTerminateService
              conversation_id: conversation.id)
 
     # Find the initiated message by call_id in metadata
+    # NOTE: enum key is :initiated (not :call_initiated) because enum has _prefix: true
     initiated_message = conversation.messages
-                                    .where(message_type: :activity, content_type: :voice_call)
+                                    .where(content_type: :voice_call)
                                     .where("call_metadata->>'call_id' = ?", whatsapp_call.call_id)
-                                    .where(call_status: :call_initiated)
+                                    .where(call_status: :initiated)
                                     .first
 
     if initiated_message
@@ -227,33 +223,34 @@ class Whatsapp::Calling::CallTerminateService
   end
 
   def determine_failed_call_status(reason)
+    # NOTE: enum has _prefix: true so keys are without the call_ prefix
     case reason.to_s.downcase
     when 'rejected', 'declined'
-      :call_rejected
+      :rejected
     when 'missed', 'no_answer', 'timeout'
-      :call_missed
+      :missed
     when 'cancelled', 'canceled'
-      :call_cancelled
+      :cancelled
     when 'busy'
-      :call_busy
+      :busy
     when 'no_connection', 'failed'
-      :call_no_connection
+      :no_connection
     else
-      :call_missed
+      :missed
     end
   end
 
   def status_to_failed_message(status)
     case status
-    when :call_rejected
+    when :rejected
       'Call rejected'
-    when :call_missed
+    when :missed
       'Missed call'
-    when :call_cancelled
+    when :cancelled
       'Call cancelled'
-    when :call_busy
+    when :busy
       'User busy'
-    when :call_no_connection
+    when :no_connection
       'Connection failed'
     else
       'Call failed'

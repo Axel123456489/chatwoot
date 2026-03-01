@@ -128,7 +128,7 @@ class Whatsapp::Calling::WebrtcSetupService
 
   def update_message_call_id(old_call_id, new_call_id)
     message = @conversation.messages
-                           .where(message_type: :activity, content_type: :voice_call)
+                           .where(content_type: :voice_call)
                            .where("call_metadata->>'call_id' = ?", old_call_id)
                            .first
 

@@ -32,10 +32,11 @@ class Whatsapp::Calling::TerminationMessageUpdater
   private
 
   def find_initiated_message(conversation)
+    # NOTE: enum key is :initiated (not :call_initiated) because enum has _prefix: true
     conversation.messages
-                .where(message_type: :activity, content_type: :voice_call)
+                .where(content_type: :voice_call)
                 .where("call_metadata->>'call_id' = ?", @whatsapp_call.call_id)
-                .where(call_status: :call_initiated)
+                .where(call_status: :initiated)
                 .first
   end
 
@@ -84,21 +85,22 @@ class Whatsapp::Calling::TerminationMessageUpdater
   end
 
   def map_webhook_status_to_call_status(status)
+    # NOTE: enum has _prefix: true so keys are without the call_ prefix
     case status.to_s.upcase
-    when 'REJECTED' then :call_rejected
-    when 'MISSED' then :call_missed
-    when 'CANCELLED', 'CANCELED' then :call_cancelled
-    when 'BUSY' then :call_busy
-    else :call_failed
+    when 'REJECTED' then :rejected
+    when 'MISSED' then :missed
+    when 'CANCELLED', 'CANCELED' then :cancelled
+    when 'BUSY' then :busy
+    else :failed
     end
   end
 
   def status_message_for(call_status)
     case call_status
-    when :call_rejected then 'Call rejected'
-    when :call_missed then 'Missed call'
-    when :call_cancelled then 'Call cancelled'
-    when :call_busy then 'Contact was busy'
+    when :rejected then 'Call rejected'
+    when :missed then 'Missed call'
+    when :cancelled then 'Call cancelled'
+    when :busy then 'Contact was busy'
     else 'Call failed'
     end
   end

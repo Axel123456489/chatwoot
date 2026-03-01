@@ -21,7 +21,8 @@ class Whatsapp::Calling::BusinessCallConnectService
 
     process_sdp_answer(conversation) if @sdp_answer.present?
     update_conversation(conversation)
-    create_connect_message(conversation)
+    # NOTE: Connected message intentionally not created here.
+    # We only show 2 messages per call: initiated + completed (with recording).
   end
 
   private

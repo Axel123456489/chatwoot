@@ -23,18 +23,32 @@ class Whatsapp::Calling::CallStatusService
   end
 
   def perform
+    Rails.logger.info "[CALL_STATUS] Incoming status event - call_id=#{@call_id} raw_status=#{@status} error_code=#{@error_code.inspect} error_message=#{@error_message.inspect} metadata=#{@metadata.inspect}"
+
     conversation = find_conversation
-    return log_error('Conversation not found', call_id: @call_id) unless conversation
+    unless conversation
+      Rails.logger.warn "[CALL_STATUS] Conversation not found for call_id=#{@call_id}"
+      return log_error('Conversation not found', call_id: @call_id)
+    end
 
     whatsapp_call = find_whatsapp_call(call_id: @call_id, conversation: conversation)
-    return log_error('WhatsappCall not found', call_id: @call_id) unless whatsapp_call
+    unless whatsapp_call
+      Rails.logger.warn "[CALL_STATUS] WhatsappCall record not found for call_id=#{@call_id} conversation_id=#{conversation.id}"
+      return log_error('WhatsappCall not found', call_id: @call_id)
+    end
 
     call_status = map_whatsapp_status_to_call_status(@status)
+    Rails.logger.info "[CALL_STATUS] Mapped status - call_id=#{@call_id} raw=#{@status} mapped=#{call_status} whatsapp_call_state=#{whatsapp_call.status} direction=#{whatsapp_call.direction}"
 
     update_conversation_status(conversation, whatsapp_call, call_status)
     update_whatsapp_call_status(whatsapp_call, call_status)
 
-    create_status_message(conversation, whatsapp_call, call_status) if should_create_message?
+    if should_create_message?
+      Rails.logger.info "[CALL_STATUS] Creating terminal status message - call_id=#{@call_id} call_status=#{call_status}"
+      create_status_message(conversation, whatsapp_call, call_status)
+    else
+      Rails.logger.info "[CALL_STATUS] No message created for non-terminal status - call_id=#{@call_id} status=#{@status}"
+    end
   rescue StandardError => e
     log_error('Failed to process call status', exception: e, call_id: @call_id, status: @status)
     # Don't re-raise to prevent job retry loops

@@ -63,7 +63,7 @@ module Whatsapp::Calling::Concerns::CallFinder
   # Helper to update message call_id when using fallback search
   def update_message_call_id_for_fallback(conversation, old_call_id, new_call_id)
     message = conversation.messages
-                          .where(message_type: :activity, content_type: :voice_call)
+                          .where(content_type: :voice_call)
                           .where("call_metadata->>'call_id' = ?", old_call_id)
                           .first
 
