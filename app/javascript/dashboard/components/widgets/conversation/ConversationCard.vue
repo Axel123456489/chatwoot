@@ -14,6 +14,7 @@ import PriorityMark from './PriorityMark.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
+import { VOICE_CALL_STATUS } from 'dashboard/components-next/message/constants';
 
 const props = defineProps({
   activeLabel: { type: String, default: '' },
@@ -84,10 +85,15 @@ const isInboxNameVisible = computed(() => !activeInbox.value);
 
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
 
-const voiceCallData = computed(() => ({
-  status: props.chat.additional_attributes?.call_status,
-  direction: props.chat.additional_attributes?.call_direction,
-}));
+const ACTIVE_CALL_STATUSES = [VOICE_CALL_STATUS.RINGING, VOICE_CALL_STATUS.IN_PROGRESS];
+
+const voiceCallData = computed(() => {
+  const status = props.chat.additional_attributes?.call_status;
+  return {
+    status: ACTIVE_CALL_STATUSES.includes(status) ? status : null,
+    direction: props.chat.additional_attributes?.call_direction,
+  };
+});
 
 const inboxId = computed(() => props.chat.inbox_id);
 

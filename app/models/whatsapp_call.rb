@@ -238,9 +238,11 @@ class WhatsappCall < ApplicationRecord
   # Check if recording is enabled for this call
   # By default, all calls should be recorded
   def recording_enabled
-    # You can add custom logic here to check account settings
-    # For now, enable recording for all calls
-    true
+    # Use the persisted column value if it has been explicitly set
+    return self[:recording_enabled] unless new_record?
+
+    # Fallback: read from channel config (should always be set at creation time)
+    inbox&.channel&.calling_config&.fetch('recording_enabled', false) || false
   end
 
   # Store call quality metrics (thread-safe)

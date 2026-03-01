@@ -68,7 +68,7 @@ export const actions = {
     }
   },
 
-  async terminateCall({ commit }, { accountId, callId, conversationId }) {
+  async terminateCall({ commit }, { accountId, callId, conversationId, duration }) {
     commit('setTerminating', true);
 
     try {
@@ -76,6 +76,7 @@ export const actions = {
         accountId,
         callId,
         conversationId,
+        duration,
       });
 
       commit('clearActiveCall');

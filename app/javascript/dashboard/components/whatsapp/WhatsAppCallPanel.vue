@@ -30,11 +30,15 @@ const {
 } = useWhatsAppCall();
 
 // Get conversation to extract account_id
+// Note: getConversationById looks up by internal id, but conversationId is display_id.
+// We fall back to getCurrentAccountId from the auth module for reliability.
 const conversation = computed(() =>
   store.getters.getConversationById(props.conversationId)
 );
 
-const accountId = computed(() => conversation.value?.account_id);
+const accountId = computed(
+  () => conversation.value?.account_id || store.getters.getCurrentAccountId
+);
 
 // Listen for call panel close event
 const handleCallPanelClose = data => {
@@ -60,10 +64,10 @@ onMounted(() => {
   }
 
   if (props.callDirection === 'outbound') {
-    const conv = conversation.value;
-    if (conv && conv.account_id) {
+    const resolvedAccountId = accountId.value;
+    if (resolvedAccountId) {
       initiateCall({
-        accountId: conv.account_id,
+        accountId: resolvedAccountId,
         conversationId: props.conversationId,
         callId: props.callId,
       })
@@ -86,8 +90,7 @@ onMounted(() => {
         });
     } else {
       console.error(
-        '[WhatsAppCallPanel] Cannot start call - conversation or account_id missing:',
-        conv
+        '[WhatsAppCallPanel] Cannot start call - account_id missing'
       );
       emit('call-ended');
     }

@@ -152,7 +152,7 @@ watch(
     <!-- Call Widgets -->
     <div
       v-if="incomingCalls.length || hasActiveCall"
-      class="fixed ltr:right-4 rtl:left-4 bottom-4 z-50 flex flex-col gap-2 w-72"
+      class="fixed ltr:right-6 rtl:left-6 bottom-4 z-50 flex flex-col gap-2 w-72"
     >
       <!-- WhatsApp Call Panel (shown for WhatsApp calls) -->
       <WhatsAppCallPanel

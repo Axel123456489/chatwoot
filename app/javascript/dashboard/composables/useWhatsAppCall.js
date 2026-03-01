@@ -74,7 +74,17 @@ export function useWhatsAppCall() {
   /**
    * Start recording both local (agent) and remote (client) audio
    */
+  function isRecordingAllowed() {
+    const chat = store.getters.getSelectedChat;
+    if (!chat?.inbox_id) return false;
+    const inbox = store.getters['inboxes/getInbox'](chat.inbox_id);
+    return inbox?.calling_config?.recording_enabled === true;
+  }
+
   function startRecording() {
+    if (!isRecordingAllowed()) {
+      return;
+    }
     try {
       if (!localStream.value) {
         return;
@@ -533,15 +543,18 @@ export function useWhatsAppCall() {
         const state = peerConnection.value.connectionState;
 
         if (state === 'connected') {
-          // Don't override callStatus here - it's already set to 'connected' by answerCall
-          // Just start recording after a short delay to ensure connection is stable
-          if (!isRecording.value && callStatus.value === 'connected') {
+          // WebRTC can reach 'connected' before callStatus is updated by the
+          // async chain below (setLocalDescription → dispatch → callStatus='connected').
+          // Set it here immediately so the timer/recording branch is never skipped.
+          callStatus.value = 'connected';
+          if (!timerStarted.value) {
+            timerStarted.value = true;
             setTimeout(() => {
-              if (!isRecording.value && callStatus.value === 'connected') {
+              if (callStatus.value === 'connected') {
                 startCallTimer();
-                startRecording();
+                if (!isRecording.value) startRecording();
               }
-            }, 1000);
+            }, 500);
           }
         } else if (
           state === 'disconnected' ||
@@ -573,6 +586,20 @@ export function useWhatsAppCall() {
       });
 
       callStatus.value = 'connected';
+
+      // Fallback: if onconnectionstatechange already fired 'connected' but
+      // timerStarted wasn't set (e.g. callStatus was still 'connecting' then),
+      // start now.
+      if (!timerStarted.value && peerConnection.value?.connectionState === 'connected') {
+        timerStarted.value = true;
+        setTimeout(() => {
+          if (callStatus.value === 'connected') {
+            startCallTimer();
+            if (!isRecording.value) startRecording();
+          }
+        }, 500);
+      }
+
       return { success: true };
     } catch (error) {
       callStatus.value = 'idle';
@@ -605,11 +632,11 @@ export function useWhatsAppCall() {
               accountId,
               callId: currentCallId.value,
               conversationId,
+              duration: callDuration.value,
             });
 
-            // Wait a bit to ensure the call termination message is created before uploading recording
-            // This prevents race condition where recording upload arrives before message creation
-            await sleep(1500);
+            // Small delay to allow the synchronous termination message creation to propagate
+            await sleep(500);
           }
         } catch (error) {
           String(error);
