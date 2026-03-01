@@ -392,6 +392,24 @@ class Api::V1::Accounts::Whatsapp::CallsController < Api::V1::Accounts::BaseCont
 
     Rails.logger.info "[WHATSAPP_CALLS] Call #{call_id} terminated successfully on WhatsApp"
 
+    # Immediately create the termination message so the browser recording upload
+    # can find it without retry exhaustion.
+    # The dedup check inside CallTerminateService prevents a duplicate when
+    # WhatsApp's own webhook arrives later.
+    terminate_duration = compute_terminate_duration(whatsapp_call, params[:duration])
+    if terminate_duration.positive?
+      Whatsapp::Calling::CallTerminateService.new(
+        account: Current.account,
+        inbox: @inbox,
+        call_id: call_id,
+        call_data: {
+          'id' => call_id,
+          'status' => 'COMPLETED',
+          'duration' => terminate_duration
+        }
+      ).perform
+    end
+
     render json: { message: 'Call terminated successfully' }, status: :ok
   rescue Whatsapp::Calling::ApiAdapter::NetworkError => e
     Rails.logger.error "[WHATSAPP_CALLS] Network error: #{e.message}"
@@ -582,8 +600,16 @@ class Api::V1::Accounts::Whatsapp::CallsController < Api::V1::Accounts::BaseCont
 
   private
 
+  def compute_terminate_duration(whatsapp_call, duration_param)
+    return duration_param.to_i if duration_param.present? && duration_param.to_i.positive?
+    return whatsapp_call.duration_seconds if whatsapp_call&.duration_seconds.to_i.positive?
+    return (Time.current - whatsapp_call.connected_at).to_i if whatsapp_call&.connected_at
+
+    0
+  end
+
   def set_conversation
-    @conversation = Current.account.conversations.find_by(id: params[:conversation_id])
+    @conversation = Current.account.conversations.find_by(display_id: params[:conversation_id])
     return render json: { error: 'Conversation not found' }, status: :not_found unless @conversation
   end
 
@@ -592,9 +618,9 @@ class Api::V1::Accounts::Whatsapp::CallsController < Api::V1::Accounts::BaseCont
     @inbox = Current.account.inboxes.find_by(id: inbox_id)
     return render json: { error: 'Inbox not found' }, status: :not_found unless @inbox
 
-    return if @inbox.channel_type == 'Channel::Whatsapp'
+    return render json: { error: 'Not a WhatsApp inbox' }, status: :bad_request unless @inbox.channel_type == 'Channel::Whatsapp'
 
-    render json: { error: 'Not a WhatsApp inbox' }, status: :bad_request
+    @channel = @inbox.channel
   end
 
   def validate_calling_enabled
@@ -682,7 +708,7 @@ class Api::V1::Accounts::Whatsapp::CallsController < Api::V1::Accounts::BaseCont
 
   def find_conversation_for_webrtc(conversation_id, call_id)
     if conversation_id.present?
-      conversation = Current.account.conversations.find_by(id: conversation_id)
+      conversation = Current.account.conversations.find_by(display_id: conversation_id)
       return conversation if conversation
     end
 
@@ -831,9 +857,9 @@ class Api::V1::Accounts::Whatsapp::CallsController < Api::V1::Accounts::BaseCont
     # Find the "Call initiated..." message by specific call_id
     Rails.logger.info "[WHATSAPP_CALLS] Searching for message with call_id: #{call_id}"
     initiated_message = conversation.messages
-                                    .where(message_type: :activity, content_type: :voice_call)
+                                    .where(content_type: :voice_call)
                                     .where("call_metadata->>'call_id' = ?", call_id)
-                                    .where(call_status: :call_initiated)
+                                    .where(call_status: :initiated)
                                     .first
 
     Rails.logger.info "[WHATSAPP_CALLS] Message found: #{initiated_message.present?}"

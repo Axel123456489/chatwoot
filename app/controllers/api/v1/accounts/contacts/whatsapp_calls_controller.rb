@@ -21,7 +21,7 @@ class Api::V1::Accounts::Contacts::WhatsappCallsController < Api::V1::Accounts::
         ).create_initiated_message
 
         render json: {
-          conversation_id: @conversation.id,
+          conversation_id: @conversation.display_id,
           call_id: result[:call_id],
           message_id: message.id,
           message: 'WhatsApp call initiated successfully'
@@ -108,6 +108,9 @@ class Api::V1::Accounts::Contacts::WhatsappCallsController < Api::V1::Accounts::
       'initiated_at' => Time.current.to_i,
       'phone_number' => formatted_phone
     }
+    # Set root-level direction/status so the conversation list shows "Outgoing call" immediately
+    @conversation.additional_attributes['call_direction'] = 'outbound'
+    @conversation.additional_attributes['call_status'] = 'ringing'
     @conversation.save!
 
     { success: true, call_id: call_id, phone_number: formatted_phone, status: 'awaiting_offer' }

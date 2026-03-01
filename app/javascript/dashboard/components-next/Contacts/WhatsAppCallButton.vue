@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, useAttrs } from 'vue';
+import { computed, ref, watch, useAttrs } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
@@ -7,6 +7,7 @@ import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { useAlert } from 'dashboard/composables';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper';
 import { useCallsStore } from 'dashboard/stores/calls';
+import whatsappCallsAPI from 'dashboard/api/whatsapp/calls';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -57,6 +58,84 @@ const shouldRender = computed(() => hasWhatsAppInboxes.value && !!props.phone);
 
 const isInitiatingCall = computed(() => {
   return contactsUiFlags.value?.isInitiatingWhatsAppCall || false;
+});
+
+// Per-contact call permission fetched from the API
+const permission = ref(null);
+const permissionLoaded = ref(false);
+
+const loadPermission = async () => {
+  const inbox = whatsappInboxes.value[0];
+  if (!inbox || !props.contactId) return;
+  permissionLoaded.value = false;
+  try {
+    const { data } = await whatsappCallsAPI.getPermission({
+      contactId: props.contactId,
+      inboxId: inbox.id,
+    });
+    permission.value = data.permission ?? null;
+  } catch {
+    permission.value = null;
+  } finally {
+    permissionLoaded.value = true;
+  }
+};
+
+// immediate: true fires as soon as inboxes are available, even before mount.
+// Watching both inbox id and contactId covers inbox picker changes.
+watch(
+  () => [whatsappInboxes.value[0]?.id, props.contactId],
+  loadPermission,
+  { immediate: true }
+);
+
+// Derive status from the per-contact permission record (expires_at from the permission,
+// not the global calling_expiry_date on the inbox calling_config).
+const callingWindowStatus = computed(() => {
+  const perm = permission.value;
+  if (!perm || !perm.granted) return 'not_granted';
+  if (!perm.expires_at) return 'permanent';
+  const daysLeft = Math.ceil(
+    (new Date(perm.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
+  );
+  if (daysLeft < 0) return 'expired';
+  if (daysLeft <= 7) return 'expiring_soon';
+  return 'temporary';
+});
+
+const callingWindowTooltip = computed(() => {
+  const base = props.tooltipLabel || t('CONTACT_PANEL.WHATSAPP_CALL');
+  const perm = permission.value;
+  if (!perm || !perm.granted || !perm.expires_at) return base;
+  const expiry = new Date(perm.expires_at);
+  const formatted = expiry.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  const daysLeft = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0) return t('CONTACT_PANEL.WHATSAPP_CALL_EXPIRED', { date: formatted });
+  if (daysLeft === 0) return t('CONTACT_PANEL.WHATSAPP_CALL_EXPIRES_TODAY');
+  if (daysLeft <= 7) return t('CONTACT_PANEL.WHATSAPP_CALL_EXPIRES_SOON', { days: daysLeft, date: formatted });
+  return `${base} · ${t('CONTACT_PANEL.WHATSAPP_CALL_UNTIL', { date: formatted })}`;
+});
+
+const STATUS_DOT_CLASSES = {
+  permanent: 'bg-n-teal-9',
+  temporary: 'bg-n-teal-9',
+  expiring_soon: 'bg-n-amber-9 animate-pulse',
+  expired: 'bg-n-ruby-9',
+  not_granted: 'bg-n-slate-9',
+};
+const statusDotClass = computed(
+  () => STATUS_DOT_CLASSES[callingWindowStatus.value] ?? 'bg-n-slate-7'
+);
+
+const isCallDisabled = computed(() => {
+  if (isInitiatingCall.value) return true;
+  // Disable when the permission record says calls can't be made
+  if (permission.value && !permission.value.can_make_call) return true;
+  return false;
 });
 
 const navigateToConversation = conversationId => {
@@ -119,17 +198,23 @@ const onPickInbox = async inbox => {
 
 <template>
   <span class="contents">
-    <Button
-      v-if="shouldRender"
-      v-tooltip.top-end="tooltipLabel || $t('CONTACT_PANEL.WHATSAPP_CALL')"
-      v-bind="attrs"
-      :disabled="isInitiatingCall"
-      :is-loading="isInitiatingCall"
-      :label="label"
-      :icon="icon"
-      :size="size"
-      @click="onClick"
-    />
+    <span v-if="shouldRender" class="relative inline-flex">
+      <Button
+        v-tooltip.top-end="callingWindowTooltip"
+        v-bind="attrs"
+        :disabled="isCallDisabled"
+        :is-loading="isInitiatingCall"
+        :label="label"
+        :icon="icon"
+        :size="size"
+        @click="onClick"
+      />
+      <span
+        v-if="permissionLoaded"
+        class="absolute -top-0.5 -right-0.5 size-2 rounded-full ring-1 ring-n-surface-1"
+        :class="statusDotClass"
+      />
+    </span>
 
     <Dialog
       v-if="shouldRender && whatsappInboxes.length > 1"

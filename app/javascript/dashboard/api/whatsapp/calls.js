@@ -15,10 +15,11 @@ class WhatsappCallsAPI extends ApiClient {
   }
 
   // Terminate an active call
-  terminateCall({ callId, conversationId }) {
+  terminateCall({ callId, conversationId, duration }) {
     return axios.post(`${this.url}/terminate`, {
       call_id: callId,
       conversation_id: conversationId,
+      duration,
     });
   }
 
@@ -75,7 +76,7 @@ class WhatsappCallsAPI extends ApiClient {
 
   // Get call permission for a contact
   getPermission({ contactId, inboxId }) {
-    return axios.get(`${this.url}/permission`, {
+    return axios.get(`${this.url}/permissions`, {
       params: {
         contact_id: contactId,
         inbox_id: inboxId,

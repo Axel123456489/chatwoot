@@ -23,6 +23,10 @@
     "WHATSAPP_CALL": "Llamada de WhatsApp",
     "WHATSAPP_CALL_INITIATED": "Iniciando llamada de WhatsApp…",
     "WHATSAPP_CALL_FAILED": "No se puede iniciar la llamada de WhatsApp. Por favor, inténtelo de nuevo.",
+    "WHATSAPP_CALL_UNTIL": "Disponible hasta {date}",
+    "WHATSAPP_CALL_EXPIRES_SOON": "Llamada de WhatsApp · Expira en {days} día(s) ({date})",
+    "WHATSAPP_CALL_EXPIRES_TODAY": "Llamada de WhatsApp · ¡La ventana de llamadas expira hoy!",
+    "WHATSAPP_CALL_EXPIRED": "Ventana de llamadas expirada el {date}",
     "WHATSAPP_INBOX_PICKER": {
       "TITLE": "Seleccionar un buzón de WhatsApp"
     },

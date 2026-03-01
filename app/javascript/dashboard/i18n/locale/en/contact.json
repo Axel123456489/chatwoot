@@ -23,6 +23,10 @@
     "WHATSAPP_CALL": "WhatsApp Call",
     "WHATSAPP_CALL_INITIATED": "Initiating WhatsApp call…",
     "WHATSAPP_CALL_FAILED": "Unable to start WhatsApp call. Please try again.",
+    "WHATSAPP_CALL_UNTIL": "Available until {date}",
+    "WHATSAPP_CALL_EXPIRES_SOON": "WhatsApp Call · Expires in {days} day(s) ({date})",
+    "WHATSAPP_CALL_EXPIRES_TODAY": "WhatsApp Call · Calling window expires today!",
+    "WHATSAPP_CALL_EXPIRED": "Calling window expired on {date}",
     "WHATSAPP_INBOX_PICKER": {
       "TITLE": "Choose a WhatsApp inbox"
     },
