@@ -135,6 +135,7 @@ const props = defineProps({
   callStatus: { type: String, default: null }, // For WhatsApp call messages
   callDirection: { type: String, default: null }, // For WhatsApp call messages
   callMetadata: { type: Object, default: null }, // For WhatsApp call messages
+  callDuration: { type: Number, default: null }, // For WhatsApp call messages
 });
 
 const emit = defineEmits(['retry']);
@@ -240,11 +241,9 @@ const isBotOrAgentMessage = computed(() => {
  * @returns {import('vue').ComputedRef<'left'|'right'|'center'>} The computed orientation
  */
 const orientation = computed(() => {
-  if (isBotOrAgentMessage.value) {
-    return ORIENTATION.RIGHT;
-  }
-
-  // Voice call messages align based on call direction (inbound/outbound)
+  // Voice call messages align based on call direction (inbound/outbound).
+  // Must be checked BEFORE isBotOrAgentMessage because inbound calls have no
+  // sender, which would cause isBotOrAgentMessage to return true (wrong side).
   if (props.contentType === CONTENT_TYPES.VOICE_CALL) {
     const dir =
       props.callDirection ||
@@ -255,6 +254,10 @@ const orientation = computed(() => {
     const normalized = typeof dir === 'string' ? dir.toLowerCase() : null;
     if (normalized === 'outbound') return ORIENTATION.RIGHT;
     return ORIENTATION.LEFT;
+  }
+
+  if (isBotOrAgentMessage.value) {
+    return ORIENTATION.RIGHT;
   }
 
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return ORIENTATION.CENTER;
@@ -451,15 +454,23 @@ const shouldRenderMessage = computed(() => {
   const isUnsupported = props.contentAttributes?.isUnsupported;
   const isAnIntegrationMessage =
     props.contentType === CONTENT_TYPES.INTEGRATIONS;
+  const isFailedMessage = props.status === MESSAGE_STATUS.FAILED;
+  const hasExternalError = !!props.contentAttributes?.externalError;
+  // Render voice_call messages only when they carry real data (content or a
+  // call_status), so empty/incomplete records don't produce blank bubbles
+  const isVoiceCallWithData =
+    props.contentType === CONTENT_TYPES.VOICE_CALL &&
+    !!(props.content || props.callStatus);
 
   return (
     hasAttachments ||
     props.content ||
     isEmailContentType ||
-    // Ensure voice_call messages always render (they may have no text)
-    props.contentType === CONTENT_TYPES.VOICE_CALL ||
+    isVoiceCallWithData ||
     isUnsupported ||
-    isAnIntegrationMessage
+    isAnIntegrationMessage ||
+    isFailedMessage ||
+    hasExternalError
   );
 });
 
@@ -575,6 +586,9 @@ provideMessageContext({
     conversationId: props.conversationId,
     createdAt: props.createdAt,
     callStatus: props.callStatus,
+    callDirection: props.callDirection,
+    callMetadata: props.callMetadata,
+    callDuration: props.callDuration,
     sender: props.sender,
     senderId: props.senderId,
     senderType: props.senderType,
