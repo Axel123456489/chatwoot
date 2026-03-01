@@ -7,7 +7,7 @@ import Icon from 'next/icon/Icon.vue';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useMessageContext } from './provider.js';
 
-import { MESSAGE_STATUS, MESSAGE_TYPES } from './constants';
+import { MESSAGE_STATUS, MESSAGE_TYPES, CONTENT_TYPES } from './constants';
 
 const {
   isAFacebookInbox,
@@ -29,6 +29,7 @@ const {
   createdAt,
   sourceId,
   messageType,
+  contentType,
   contentAttributes,
 } = useMessageContext();
 
@@ -38,6 +39,8 @@ const readableTime = computed(() =>
 
 const showStatusIndicator = computed(() => {
   if (isPrivate.value) return false;
+  // Don't show status for voice_call messages — they aren't sent like regular messages
+  if (contentType.value === CONTENT_TYPES.VOICE_CALL) return false;
   // Don't show status for failed messages, we already show error message
   if (status.value === MESSAGE_STATUS.FAILED) return false;
   // Don't show status for deleted messages

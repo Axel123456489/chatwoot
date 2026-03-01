@@ -51,5 +51,4 @@ const buttonTitle = computed(() => {
       {{ ` · ${buttonTitle}` }}
     </span>
   </div>
-  <div v-else />
 </template>

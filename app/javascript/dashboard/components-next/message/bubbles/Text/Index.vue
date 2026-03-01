@@ -153,6 +153,9 @@ const buttonClass = computed(() => {
 </template>
 
 <style>
+p:first-child {
+  margin-top: 0;
+}
 p:last-child {
   margin-bottom: 0;
 }
