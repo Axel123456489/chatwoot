@@ -222,6 +222,30 @@ RSpec.describe Account, type: :model do
     end
   end
 
+  describe 'overflow feature flags' do
+    let(:account) { create(:account) }
+
+    it 'stores advanced_assignment outside bigint feature_flags' do
+      expect do
+        account.update!(selected_feature_flags: %i[feature_assignment_v2 feature_advanced_assignment])
+      end.not_to raise_error
+
+      account.reload
+
+      expect(account.feature_enabled?('assignment_v2')).to be true
+      expect(account.feature_enabled?('advanced_assignment')).to be true
+      expect(account.internal_attributes['overflow_feature_flags']).to include('advanced_assignment')
+    end
+
+    it 'disables advanced_assignment when selected features are cleared' do
+      account.update!(selected_feature_flags: [:feature_advanced_assignment])
+
+      account.update!(selected_feature_flags: [])
+
+      expect(account.reload.feature_enabled?('advanced_assignment')).to be false
+    end
+  end
+
   describe 'account deletion' do
     let(:account) { create(:account) }
     let(:admin) { create(:user, account: account, role: :administrator) }

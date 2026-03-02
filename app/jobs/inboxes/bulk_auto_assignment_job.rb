@@ -3,7 +3,9 @@ class Inboxes::BulkAutoAssignmentJob < ApplicationJob
   include BillingHelper
 
   def perform
-    Account.feature_assignment_v2.find_each do |account|
+    Account.find_each do |account|
+      next unless account.feature_enabled?('assignment_v2')
+
       if should_skip_auto_assignment?(account)
         Rails.logger.info("Skipping auto assignment for account #{account.id}")
         next
