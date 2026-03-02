@@ -5,7 +5,7 @@ module Enterprise::Account
 
   # Auto-sync advanced_assignment with assignment_v2 when features are bulk-updated via admin UI
   def selected_feature_flags=(features)
-    super
+    assign_selected_feature_flags(features)
     sync_assignment_features
   end
 
@@ -46,9 +46,9 @@ module Enterprise::Account
     return unless ChatwootApp.chatwoot_cloud?
 
     if feature_enabled?('assignment_v2')
-      send('feature_advanced_assignment=', true) if business_or_enterprise_plan?
+      enable_features('advanced_assignment') if business_or_enterprise_plan?
     else
-      send('feature_advanced_assignment=', false)
+      disable_features('advanced_assignment')
     end
   end
 
