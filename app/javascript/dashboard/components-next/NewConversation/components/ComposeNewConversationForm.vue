@@ -238,6 +238,7 @@ const removeTargetInbox = value => {
 };
 
 const clearSelectedContact = () => {
+  copilot.reset(false);
   emit('clearSelectedContact');
   state.message = '';
   state.attachedFiles = [];

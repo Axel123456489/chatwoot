@@ -265,18 +265,13 @@ Rails.application.routes.draw do
               end
             end
 
-            resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates'
+            resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates' do
+              post :analyze, on: :collection
+            end
 
             scope module: :inboxes do
               resources :message_templates, only: [:destroy, :update]
             end
-            if ChatwootApp.enterprise?
-              resource :conference, only: %i[create destroy], controller: 'conference' do
-                get :token, on: :member
-              end
-            end
-
-            resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates'
           end
 
           resources :inbox_members, only: [:create, :show], param: :inbox_id do

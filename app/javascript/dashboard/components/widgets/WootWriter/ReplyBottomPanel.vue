@@ -201,7 +201,8 @@ export default {
       return this.showFileUpload || this.isNote;
     },
     showAudioRecorderButton() {
-      if (this.isALineChannel) {
+      if (this.isEditorDisabled) return false;
+      if (this.isALineChannel || this.isATiktokChannel) {
         return false;
       }
       // Disable audio recorder for safari browser as recording is not supported

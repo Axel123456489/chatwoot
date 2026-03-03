@@ -209,6 +209,7 @@ class Conversation < ApplicationRecord
 
   def bot_handoff!
     self.assignee_agent_bot_id = nil
+    update(waiting_since: Time.current) if waiting_since.blank?
     open!
     dispatcher_dispatch(CONVERSATION_BOT_HANDOFF)
   end

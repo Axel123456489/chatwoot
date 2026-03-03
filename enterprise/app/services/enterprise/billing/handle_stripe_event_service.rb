@@ -10,7 +10,6 @@ class Enterprise::Billing::HandleStripeEventService
     help_center
     campaigns
     team_management
-    channel_twitter
     channel_facebook
     channel_email
     channel_instagram

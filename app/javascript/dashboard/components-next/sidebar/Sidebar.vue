@@ -600,6 +600,15 @@ const menuItems = computed(() => {
           name: 'Settings Agent Assignment',
           label: t('SIDEBAR.AGENT_ASSIGNMENT'),
           icon: 'i-lucide-user-cog',
+          activeOn: [
+            'assignment_policy_index',
+            'agent_assignment_policy_index',
+            'agent_assignment_policy_create',
+            'agent_assignment_policy_edit',
+            'agent_capacity_policy_index',
+            'agent_capacity_policy_create',
+            'agent_capacity_policy_edit',
+          ],
           to: accountScopedRoute('assignment_policy_index'),
         },
         {

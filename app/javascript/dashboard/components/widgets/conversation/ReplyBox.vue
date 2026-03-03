@@ -201,6 +201,15 @@ export default {
       return this.$store.getters['inboxes/getInbox'](this.inboxId);
     },
     messagePlaceHolder() {
+      if (this.isEditorDisabled) {
+        if (this.isAWhatsAppChannel) {
+          return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED_WHATSAPP');
+        }
+        if (this.isAPIInbox) {
+          return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED_API');
+        }
+        return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED');
+      }
       return this.isPrivate
         ? this.$t('CONVERSATION.FOOTER.PRIVATE_MSG_INPUT')
         : this.$t('CONVERSATION.FOOTER.MSG_INPUT');
@@ -427,7 +436,7 @@ export default {
     shouldShowButtonBuilder() {
       return (
         this.showButtonBuilder &&
-        this.isAWhatsAppChannel &&
+        (this.isAWhatsAppChannel || this.isAPIInbox) &&
         !this.isOnPrivateNote &&
         this.isDefaultEditorMode
       );
@@ -737,7 +746,8 @@ export default {
         // Although Chatwoot combines these into a single message, Instagram sends separate echo events for each component.
         // This can create duplicate messages in Chatwoot. To prevent this issue, we'll handle text and attachments as separate messages.
         const isOnInstagram = this.isAnInstagramChannel;
-        if ((isOnWhatsApp || isOnInstagram) && !this.isPrivate) {
+        const isOnTiktok = this.isATiktokChannel;
+        if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
           this.sendMessageAsMultipleMessages(this.message);
         } else {
           const messagePayload = this.getMessagePayload(this.message);

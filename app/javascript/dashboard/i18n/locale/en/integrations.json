@@ -54,6 +54,8 @@
     "DISCONNECT": {
       "BUTTON_TEXT": "Disconnect"
     },
+    "SEARCH_PLACEHOLDER": "Search integrations...",
+    "NO_RESULTS": "No integrations found matching your search",
     "CAPTAIN": {
       "DISABLED": "Captain is not enabled on your account.",
       "CLICK_HERE_TO_CONFIGURE": "Click here to configure",
