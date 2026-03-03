@@ -81,6 +81,43 @@ RSpec.describe Whatsapp::Calling::OutboundCallService do
         expect(call_data['direction']).to eq('outbound')
         expect(call_data['status']).to eq('initiated')
       end
+
+      context 'when no conversation is passed' do
+        before do
+          allow_any_instance_of(Whatsapp::Calling::ApiAdapter).to receive(:initiate_call)
+            .and_return({ 'calls' => [{ 'id' => 'test_call_123' }] })
+        end
+
+        it 'reuses old conversation when lock_to_single_conversation is enabled' do
+          inbox.update!(lock_to_single_conversation: true)
+          old_conversation = create(:conversation, account: account, inbox: inbox, contact: contact, created_at: 3.days.ago)
+
+          expect do
+            @result = described_class.initiate_call(
+              account: account,
+              inbox: inbox,
+              contact: contact,
+              user: user
+            )
+          end.not_to change(Conversation, :count)
+
+          expect(@result[:conversation].id).to eq(old_conversation.id)
+        end
+
+        it 'creates a new conversation for old threads when lock_to_single_conversation is disabled' do
+          inbox.update!(lock_to_single_conversation: false)
+          create(:conversation, account: account, inbox: inbox, contact: contact, created_at: 3.days.ago)
+
+          expect do
+            described_class.initiate_call(
+              account: account,
+              inbox: inbox,
+              contact: contact,
+              user: user
+            )
+          end.to change(Conversation, :count).by(1)
+        end
+      end
     end
 
     context 'without permission' do

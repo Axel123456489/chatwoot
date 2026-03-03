@@ -69,96 +69,79 @@ class Whatsapp::Calling::InboundCallBuilder
   end
 
   def find_or_create_conversation!(contact, contact_inbox)
-    # First, try to find existing conversation by call_id (in case of retry/duplicate webhook)
-    conversation = account.conversations.find_by(
-      identifier: @call_id
-    )
+    contact_inbox.with_lock do
+      # First, try to find existing conversation by call_id (in case of retry/duplicate webhook)
+      conversation = account.conversations.find_by(identifier: @call_id)
+      return conversation if conversation
 
-    return conversation if conversation
+      # If lock_to_single_conversation is enabled, reuse the last conversation (even if closed)
+      if inbox.lock_to_single_conversation?
+        existing_conversation = account.conversations
+                                       .where(contact: contact, inbox: inbox)
+                                       .order(updated_at: :desc)
+                                       .first
 
-    # If lock_to_single_conversation is enabled, reuse the last conversation (even if closed)
-    if inbox.lock_to_single_conversation?
-      existing_conversation = account.conversations
-                                     .where(contact: contact, inbox: inbox)
-                                     .order(updated_at: :desc)
-                                     .first
+        if existing_conversation
+          Rails.logger.info "[WHATSAPP_CALLS] Lock to single conversation enabled, reusing conversation #{existing_conversation.id} (status: #{existing_conversation.status})"
 
-      if existing_conversation
-        Rails.logger.info "[WHATSAPP_CALLS] Lock to single conversation enabled, reusing conversation #{existing_conversation.id} (status: #{existing_conversation.status})"
+          # Reopen conversation if it's resolved
+          existing_conversation.open! if existing_conversation.resolved?
+          apply_call_attributes!(existing_conversation)
+          create_whatsapp_call_record!(existing_conversation)
+          return existing_conversation
+        end
+      else
+        # Check if there's an existing open conversation with this contact in this inbox
+        # This allows the call to be part of an ongoing conversation
+        existing_conversation = account.conversations
+                                       .where(contact: contact, inbox: inbox)
+                                       .where(status: [:open, :pending])
+                                       .order(updated_at: :desc)
+                                       .first
 
-        # Reopen conversation if it's resolved
-        existing_conversation.open! if existing_conversation.resolved?
-
-        # Add call information to existing conversation
-        existing_conversation.update!(
-          additional_attributes: (existing_conversation.additional_attributes || {}).merge(
-            'call_id' => @call_id,
-            'call_direction' => 'inbound',
-            'call_status' => 'ringing',
-            'has_active_call' => true,
-            'sdp_offer' => @sdp_offer
-          ).compact
-        )
-
-        # Create WhatsappCall record linked to this conversation
-        create_whatsapp_call_record!(existing_conversation)
-
-        return existing_conversation
+        if existing_conversation
+          Rails.logger.info "[WHATSAPP_CALLS] Found existing open conversation #{existing_conversation.id}, adding call to it"
+          apply_call_attributes!(existing_conversation)
+          create_whatsapp_call_record!(existing_conversation)
+          return existing_conversation
+        end
       end
-    else
-      # Check if there's an existing open conversation with this contact in this inbox
-      # This allows the call to be part of an ongoing conversation
-      existing_conversation = account.conversations
-                                     .where(contact: contact, inbox: inbox)
-                                     .where(status: [:open, :pending])
-                                     .order(updated_at: :desc)
-                                     .first
 
-      if existing_conversation
-        Rails.logger.info "[WHATSAPP_CALLS] Found existing open conversation #{existing_conversation.id}, adding call to it"
+      # Create new conversation if no existing conversation found
+      Rails.logger.info '[WHATSAPP_CALLS] No existing conversation found, creating new one for call'
+      conversation = account.conversations.create!(
+        contact: contact,
+        inbox: inbox,
+        contact_inbox: contact_inbox,
+        identifier: @call_id,
+        status: :open,
+        additional_attributes: {
+          'call_direction' => 'inbound',
+          'call_status' => 'ringing',
+          'call_id' => @call_id,
+          'from_number' => @from_number,
+          'to_number' => @to_number,
+          'initiated_at' => Time.current.to_i,
+          'has_active_call' => true,
+          'sdp_offer' => @sdp_offer
+        }.compact
+      )
 
-        # Add call information to existing conversation
-        existing_conversation.update!(
-          additional_attributes: (existing_conversation.additional_attributes || {}).merge(
-            'call_id' => @call_id,
-            'call_direction' => 'inbound',
-            'call_status' => 'ringing',
-            'has_active_call' => true,
-            'sdp_offer' => @sdp_offer
-          ).compact
-        )
-
-        # Create WhatsappCall record linked to this conversation
-        create_whatsapp_call_record!(existing_conversation)
-
-        return existing_conversation
-      end
+      create_whatsapp_call_record!(conversation)
+      conversation
     end
+  end
 
-    # Create new conversation if no existing conversation found
-    Rails.logger.info '[WHATSAPP_CALLS] No existing conversation found, creating new one for call'
-    conversation = account.conversations.create!(
-      contact: contact,
-      inbox: inbox,
-      contact_inbox: contact_inbox,
-      identifier: @call_id,
-      status: :open,
-      additional_attributes: {
+  def apply_call_attributes!(conversation)
+    conversation.update!(
+      additional_attributes: (conversation.additional_attributes || {}).merge(
+        'call_id' => @call_id,
         'call_direction' => 'inbound',
         'call_status' => 'ringing',
-        'call_id' => @call_id,
-        'from_number' => @from_number,
-        'to_number' => @to_number,
-        'initiated_at' => Time.current.to_i,
         'has_active_call' => true,
         'sdp_offer' => @sdp_offer
-      }.compact
+      ).compact
     )
-
-    # Crear registro de WhatsappCall
-    create_whatsapp_call_record!(conversation)
-
-    conversation
   end
 
   def pre_accept_call

@@ -85,13 +85,18 @@ class Whatsapp::Calling::OutboundCallService
   end
 
   def find_or_create_conversation
-    # Try to find recent conversation
-    recent_conversation = contact.conversations
-                                 .where(inbox: inbox)
-                                 .where('created_at > ?', 24.hours.ago)
-                                 .last
+    scoped_conversations = contact.conversations.where(inbox: inbox)
 
-    return recent_conversation if recent_conversation
+    if inbox.lock_to_single_conversation?
+      existing_conversation = scoped_conversations.order(updated_at: :desc).first
+      return existing_conversation if existing_conversation
+    else
+      # Try to find recent conversation
+      recent_conversation = scoped_conversations
+                            .where('created_at > ?', 24.hours.ago)
+                            .last
+      return recent_conversation if recent_conversation
+    end
 
     # Create new conversation
     ContactInboxBuilder.new(

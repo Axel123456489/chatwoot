@@ -115,6 +115,48 @@ RSpec.describe Whatsapp::Calling::InboundCallBuilder do
         returned_conversation = builder.perform
         expect(returned_conversation.id).to eq(existing_conversation.id)
       end
+
+      it 'reuses latest conversation when lock_to_single_conversation is enabled' do
+        inbox.update!(lock_to_single_conversation: true)
+        contact = create(:contact, account: account, phone_number: '+1234567890')
+        contact_inbox = create(:contact_inbox, contact: contact, inbox: inbox, source_id: '+1234567890')
+        old_conversation = create(:conversation,
+                                  account: account,
+                                  inbox: inbox,
+                                  contact: contact,
+                                  contact_inbox: contact_inbox,
+                                  status: :resolved,
+                                  updated_at: 3.days.ago)
+
+        builder = described_class.new(
+          account: account,
+          inbox: inbox,
+          call_data: call_data.merge('id' => 'call-67890'),
+          metadata: metadata
+        )
+
+        expect { @conversation = builder.perform }.not_to change(Conversation, :count)
+        expect(@conversation.id).to eq(old_conversation.id)
+      end
+
+      it 'does not create duplicate conversation for duplicate webhook call_id' do
+        first_builder = described_class.new(
+          account: account,
+          inbox: inbox,
+          call_data: call_data,
+          metadata: metadata
+        )
+
+        second_builder = described_class.new(
+          account: account,
+          inbox: inbox,
+          call_data: call_data,
+          metadata: metadata
+        )
+
+        expect { first_builder.perform }.to change(Conversation, :count).by(1)
+        expect { second_builder.perform }.not_to change(Conversation, :count)
+      end
     end
 
     context 'when calling is disabled' do
