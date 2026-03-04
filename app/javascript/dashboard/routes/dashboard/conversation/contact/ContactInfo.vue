@@ -324,7 +324,17 @@ export default {
         :contact="contact"
         @cancel="toggleEditModal"
       />
-      <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
+      <ContactMergeModal
+        v-if="showMergeModal"
+        :primary-contact="contact"
+        :show="showMergeModal"
+        @close="closeMergeModal"
+      />
+      <MergeMessagesModal
+        v-if="showMergeMessagesModal"
+        :current-chat="currentChat"
+        @cancel="closeMergeMessagesModal"
+      />
     </div>
     <woot-delete-modal
       v-if="showDeleteModal"
