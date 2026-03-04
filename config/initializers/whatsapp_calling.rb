@@ -20,7 +20,7 @@ Rails.application.config.to_prepare do
   Rails.logger.info '[WhatsApp Calling] Circuit breaker configured' if defined?(Whatsapp::Calling::ApiAdapter)
 
   # Setup cleanup job for stale calls
-  if defined?(Sidekiq) && Whatsapp::Calling::Configuration.daily_call_limit.positive?
+  if defined?(Sidekiq) && defined?(Whatsapp::Calling::Configuration) && Whatsapp::Calling::Configuration.daily_call_limit.positive?
     Rails.logger.info '[WhatsApp Calling] Stale call cleanup scheduled'
   end
 end
